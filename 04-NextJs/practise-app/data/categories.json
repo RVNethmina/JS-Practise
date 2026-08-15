@@ -1,0 +1,26 @@
+[
+  {
+    "id": "cat-electronics",
+    "slug": "electronics",
+    "name": "Electronics",
+    "description": "Audio, wearables, and desk hardware."
+  },
+  {
+    "id": "cat-furniture",
+    "slug": "furniture",
+    "name": "Furniture",
+    "description": "Desks, seating, storage, and lighting."
+  },
+  {
+    "id": "cat-apparel",
+    "slug": "apparel",
+    "name": "Apparel",
+    "description": "Layers built for changeable weather."
+  },
+  {
+    "id": "cat-kitchen",
+    "slug": "kitchen",
+    "name": "Kitchen",
+    "description": "Brewing gear and cookware that lasts."
+  }
+]

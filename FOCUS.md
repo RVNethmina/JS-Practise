@@ -115,21 +115,31 @@ Weak track, so most of it is Tier 1. Priority *within* Tier 1 is top to bottom.
 Weak track and the one where the mental model matters more than the API.
 Do the model first; the API surface is small once the model is right.
 
-**Tier 1 — in this order**
-1. `03-server-components` + `04-client-components` — the server/client boundary is *the* Next.js interview topic. What runs where, what can cross the boundary, why.
-2. `13-rendering` — static vs dynamic vs streaming.
-3. `12-caching` — request/data/route caching, revalidation, invalidation after mutation. The most commonly misunderstood part of the framework, and interviewers know it.
-4. `06-data-fetching`.
-5. `09-server-actions` — mutations plus revalidation.
-6. `01-routing`, `02-layouts`, `05-dynamic-routes` — quick wins, largely mechanical. Get them done early for momentum.
-7. `15-typescript-nextjs` — kills two birds, since TypeScript is also a gap.
-8. `16-nextjs-interview` — assessment.
+**This track no longer uses exercise files.** It is a 15-phase build of one real
+application — see [04-NextJs/BUILD-PLAN.md](04-NextJs/BUILD-PLAN.md). Routing *is*
+folder structure, and caching and streaming are runtime behaviour, so isolated files
+could never teach either. The phases are dependency-ordered and must be done in
+sequence.
 
-**Tier 2**
-- `07-loading-error`, `08-api-route-handlers`, `10-authentication`, `11-middleware`.
+**The phases that carry the most interview weight**
+1. **Phase 3 + 4** — Server and Client Components. The boundary is *the* Next.js
+   interview topic. What runs where, what can cross it, why.
+2. **Phase 11 — Caching.** The most misunderstood part of the framework, and
+   interviewers know it. Slowest phase; budget double.
+3. **Phase 9 — Rendering.** Static vs dynamic vs streaming.
+4. **Phase 10 — Server Actions.** Mutations plus revalidation.
+5. **Phase 14 — TypeScript pass.** Kills two birds, since TypeScript is also a gap.
 
-**Tier 3**
-- `14-performance` — concepts only (Image, font optimization, reducing client bundle). Understand the levers, do not build the exercises.
+**Mechanical, fast, good for momentum**
+- Phases 1, 2, 5 — routing, layouts, dynamic routes. Front-loaded on purpose.
+
+**Lower weight, still worth building**
+- Phases 7, 8, 12, 13 — loading/errors, route handlers, auth, middleware.
+
+**Skipped entirely**
+- `14-performance` from the original README — concepts only (Image, font
+  optimization, reducing client bundle). Understand the levers; there is no phase
+  for it.
 
 ---
 
@@ -158,40 +168,45 @@ On the second pass and after, do only the questions you got wrong last time.
 
 ### Track B — main block, the bulk of your time
 
-29 folders, in this exact order. TypeScript and Next.js interleave because they compound.
-Steps 3–4 and 8 are deliberately easy — mechanical wins placed early for momentum.
+30 steps, in this exact order. TypeScript folders and Next.js **phases** interleave
+because they compound — every phase built in `.tsx` is TypeScript reps.
 
-| # | Folder | Done when |
+The Next.js phases are dependency-ordered among themselves and cannot be reordered:
+each one builds on what the last produced. TypeScript folders can slide around them
+freely if you prefer.
+
+| # | Step | Done when |
 |---|---|---|
 | 1 | `02-TypeScript/01-basics` | you can state `any` vs `unknown` vs `never` without hedging |
 | 2 | `02-TypeScript/02-types` | unions, literals, `keyof`, `readonly` written from memory |
-| 3 | `04-NextJs/01-routing` | nested, dynamic, catch-all and route groups all built once |
-| 4 | `04-NextJs/02-layouts` | nested layouts and a route-group layout working |
-| 5 | `02-TypeScript/03-functions` | generic function signatures written unaided |
-| 6 | `02-TypeScript/04-objects` | index signatures and nested object types |
-| 7 | `02-TypeScript/05-interfaces` | interface vs type explained out loud |
-| 8 | `04-NextJs/05-dynamic-routes` | params typed, `generateStaticParams` used |
-| 9 | `02-TypeScript/06-type-aliases` | a recursive JSON-like type written from scratch |
-| 10 | `02-TypeScript/07-unions-intersections` | discriminated union + `never` exhaustiveness check |
-| 11 | `02-TypeScript/08-generics` | generic repository and constrained generic written unaided |
-| 12 | `02-TypeScript/09-narrowing` | custom type predicate written from memory |
-| 13 | `02-TypeScript/10-utility-types` | `Pick`, `Omit` and `ReturnType` **implemented**, not just used |
-| 14 | `04-NextJs/03-server-components` | you can say exactly what may cross the boundary, and why |
-| 15 | `04-NextJs/04-client-components` | same, from the client side |
-| 16 | `04-NextJs/13-rendering` | static vs dynamic vs streaming explained in 90 seconds |
-| 17 | `04-NextJs/06-data-fetching` | fetching, dependent data, and failure handled |
-| 18 | `02-TypeScript/13-async-types` | typed fetch + `Awaited` used correctly |
-| 19 | `04-NextJs/12-caching` | you can name what invalidates what. **Slowest step — expect it.** |
-| 20 | `04-NextJs/07-loading-error` | `loading` / `error` / `not-found` with a working reset |
-| 21 | `04-NextJs/08-api-route-handlers` | full CRUD plus a paginated endpoint |
-| 22 | `04-NextJs/09-server-actions` | mutation with revalidation, from memory |
-| 23 | `04-NextJs/10-authentication` | protected route + role check |
-| 24 | `04-NextJs/11-middleware` | redirect logged-out user, redirect logged-in away from login |
-| 25 | `02-TypeScript/12-classes-oop` | abstract class + generic class |
-| 26 | `02-TypeScript/11-advanced-types` | read-level only: explain mapped types and `infer` |
-| 27 | `04-NextJs/15-typescript-nextjs` | both gap tracks at once — do not rush this one |
-| 28 | `02-TypeScript/14-typescript-interview` | **assessment.** Closed docs. |
-| 29 | `04-NextJs/16-nextjs-interview` | **assessment.** Closed docs. |
+| 3 | **Next Phase 0** — Scaffold | app runs, `lib/db.ts` with artificial delays |
+| 4 | **Next Phase 1** — Routing | nested, dynamic, catch-all and route groups all built |
+| 5 | **Next Phase 2** — Layouts | layout state proven to survive navigation |
+| 6 | `02-TypeScript/03-functions` | generic function signatures written unaided |
+| 7 | `02-TypeScript/04-objects` | index signatures and nested object types |
+| 8 | `02-TypeScript/05-interfaces` | interface vs type explained out loud |
+| 9 | **Next Phase 3** — Server Components | you can say exactly what may cross the boundary, and why |
+| 10 | **Next Phase 4** — Client Components | same from the client side; hydration error seen and fixed |
+| 11 | `02-TypeScript/06-type-aliases` | a recursive JSON-like type written from scratch |
+| 12 | `02-TypeScript/07-unions-intersections` | discriminated union + `never` exhaustiveness check |
+| 13 | `02-TypeScript/08-generics` | generic repository and constrained generic written unaided |
+| 14 | **Next Phase 5** — Dynamic Routes | params typed and validated, `generateStaticParams` used |
+| 15 | `02-TypeScript/09-narrowing` | custom type predicate written from memory |
+| 16 | `02-TypeScript/10-utility-types` | `Pick`, `Omit` and `ReturnType` **implemented**, not just used |
+| 17 | **Next Phase 6** — Data Fetching | waterfall vs parallel measured, pagination working |
+| 18 | **Next Phase 7** — Loading & Errors | `loading` / `error` / `not-found` with a working reset |
+| 19 | `02-TypeScript/13-async-types` | typed fetch + `Awaited` used correctly |
+| 20 | **Next Phase 8** — Route Handlers | full CRUD plus a paginated endpoint, tested with curl |
+| 21 | **Next Phase 9** — Rendering | static vs dynamic vs streaming explained in 90 seconds |
+| 22 | **Next Phase 10** — Server Actions | a form that submits with JavaScript disabled |
+| 23 | **Next Phase 11** — Caching | you can name all four caches and what invalidates what. **Slowest step — expect it.** |
+| 24 | **Next Phase 12** — Authentication | protected route + role check, 401 vs 403 |
+| 25 | **Next Phase 13** — Middleware | redirects both ways with no loop, `//evil.com` blocked |
+| 26 | `02-TypeScript/12-classes-oop` | abstract class + generic class |
+| 27 | `02-TypeScript/11-advanced-types` | read-level only: explain mapped types and `infer` |
+| 28 | **Next Phase 14** — TypeScript pass | `tsc --noEmit` clean across the whole app |
+| 29 | `02-TypeScript/14-typescript-interview` | **assessment.** Closed docs. |
+| 30 | `04-NextJs/16-nextjs-interview` | **assessment.** Closed docs. |
 
 ### Track C — one longer session per week
 
@@ -216,11 +231,20 @@ Cut in this order, and only in this order:
 
 1. Track C sessions C14–C16 (`06-oop`, `19-react-patterns`, `08-error-handling`).
 2. Track C algorithm folders down to two: keep `11-algorithms-hash-maps` and `11-algorithms-sliding-window`.
-3. Track B steps 25 and 26 (`12-classes-oop`, `11-advanced-types`).
-4. Track B steps 23 and 24 (`10-authentication`, `11-middleware`).
+3. Track B steps 26 and 27 (`12-classes-oop`, `11-advanced-types`).
+4. Track B steps 24 and 25 (Next Phases 12 and 13 — Authentication, Middleware).
 
-Never cut: Track B steps 10–19, or the four assessment folders (B28, B29, C17, C18).
+**Never cut:** Track B steps 9–23 — that stretch runs from the server/client boundary
+through generics, utility types, rendering, and caching, and it is where both gap
+tracks actually get closed. Nor the four assessments (B29, B30, C17, C18).
+
 Compress rather than cut by doubling Track C to two sessions per week.
+
+**Cutting Next.js phases is different from cutting folders.** The phases build on
+each other, so you cannot drop one from the middle — Phase 11 needs Phase 8's API and
+Phase 10's mutations to exist. If time runs out, stop at a phase boundary rather than
+skipping ahead. A half-built app through Phase 11 is worth far more than a
+skipped-around one through Phase 14.
 
 ---
 
