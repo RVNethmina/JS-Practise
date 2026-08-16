@@ -1,6 +1,11 @@
-# Phase 13 — Middleware
+# Phase 13 — Middleware (Proxy)
 
 Concept folder: **11-middleware** · 5 problems
+
+> ⚠️ **Next.js 16 renamed this feature.** `middleware.ts` is deprecated and is now
+> `proxy.ts`, exporting a function called `proxy` instead of `middleware`. The
+> functionality is identical. This brief uses the new names; older tutorials will
+> say "middleware" throughout.
 
 ## Read first
 
@@ -11,7 +16,7 @@ Concept folder: **11-middleware** · 5 problems
 
 ## What you're building
 
-`middleware.ts` at the **project root** — beside `app/`, not inside it. One file for
+`proxy.ts` at the **project root** — beside `app/`, not inside it. One file for
 the whole application.
 
 This is an **optimisation layer**, not a security boundary. The Phase 12 checks
@@ -22,9 +27,9 @@ an obviously-logged-out request.
 
 ## Problem 1 — Protect the dashboard route
 
-**File:** `middleware.ts`
+**File:** `proxy.ts`
 
-- Export a function named `middleware`
+- Export a function named `proxy` (named or default export both work)
 - Export a `config` with a matcher limiting it to dashboard routes
 - Read the cookie from `request.cookies` — **synchronous** here, unlike `cookies()`
   in pages
@@ -39,7 +44,7 @@ runtime telling you why this can't be your real auth check.
 
 ## Problem 2 — Redirect logged-out user, preserving destination
 
-**File:** `middleware.ts`
+**File:** `proxy.ts`
 
 - Append `?callbackUrl=<original path>` to the login URL
 - Build the URL from `request.nextUrl`
@@ -55,9 +60,9 @@ Also try `?callbackUrl=//example.com` — the protocol-relative form. If your ch
 
 ## Problem 3 — Redirect authenticated users away from login
 
-**File:** `middleware.ts`
+**File:** `proxy.ts`
 
-The inverse guard, in the **same** middleware function.
+The inverse guard, in the **same** `proxy` function.
 
 - One matcher covering both `/dashboard` and `/login`
 - Avoid a redirect loop — comment how
@@ -71,7 +76,7 @@ when there's no session. Watch the browser give up. Then fix it.
 
 ## Problem 4 — Locale routing
 
-**File:** `middleware.ts`
+**File:** `proxy.ts`
 
 - Read `Accept-Language`
 - Use `NextResponse.rewrite`, **not** redirect
@@ -87,7 +92,7 @@ and watch the URL bar change — that's the distinction.
 
 ## Problem 5 — Security headers
 
-**File:** `middleware.ts`
+**File:** `proxy.ts`
 
 - `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`
 - A basic `Content-Security-Policy`

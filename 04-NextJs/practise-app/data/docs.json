@@ -1,0 +1,42 @@
+[
+  {
+    "slug": [],
+    "title": "Documentation",
+    "body": "Everything you need to set up, configure, and integrate with the store. Start with Getting Started, or jump straight to the API reference."
+  },
+  {
+    "slug": ["getting-started"],
+    "title": "Getting Started",
+    "body": "This section covers installation and first configuration. If you only read one page, read Installation."
+  },
+  {
+    "slug": ["getting-started", "installation"],
+    "title": "Installation",
+    "body": "Install the client library, add your API key to the environment, and make a first request against the products endpoint to confirm connectivity."
+  },
+  {
+    "slug": ["getting-started", "configuration"],
+    "title": "Configuration",
+    "body": "Configuration is read from environment variables at startup. Values set at runtime are ignored, which is deliberate: it keeps the running process reproducible."
+  },
+  {
+    "slug": ["guides", "deployment"],
+    "title": "Deployment",
+    "body": "Build the application, run the migration step, then promote. The migration is idempotent and safe to run against an already-current database."
+  },
+  {
+    "slug": ["guides", "authentication"],
+    "title": "Authentication",
+    "body": "Sessions are carried in an httpOnly cookie. Tokens are signed, not encrypted, so never place anything sensitive in the payload."
+  },
+  {
+    "slug": ["api", "reference", "products"],
+    "title": "Products API",
+    "body": "List, read, create, update, and delete products. List responses are paginated and include total and totalPages alongside the items array."
+  },
+  {
+    "slug": ["api", "reference", "users"],
+    "title": "Users API",
+    "body": "Read and create users. Role is assigned server-side and cannot be set through the public create endpoint."
+  }
+]

@@ -1,0 +1,102 @@
+[
+  {
+    "id": "post-1",
+    "slug": "why-we-rebuilt-our-storefront",
+    "title": "Why We Rebuilt Our Storefront",
+    "excerpt": "The old stack shipped 400kb of JavaScript to render a product list. Here is what we changed.",
+    "body": "The old stack shipped 400kb of JavaScript to render a product list, and most of it existed to fetch data the server already had. Moving the catalogue to server rendering cut the bundle by two thirds and removed every loading spinner from the browse flow.\n\nThe interesting part was not the performance win. It was discovering how much of our client state existed only to compensate for data arriving late.",
+    "authorId": "u-1",
+    "publishedAt": "2026-01-10T09:00:00.000Z",
+    "tags": ["engineering", "performance"]
+  },
+  {
+    "id": "post-2",
+    "slug": "choosing-materials-that-last",
+    "title": "Choosing Materials That Last",
+    "excerpt": "Waxed canvas, merino, and carbon steel all age. The question is whether they age well.",
+    "body": "Waxed canvas, merino, and carbon steel all age. The question is whether they age well, and that depends far more on how a thing is finished than on what it is made from.\n\nWe reject more prototypes for their hardware than for their fabric.",
+    "authorId": "u-2",
+    "publishedAt": "2026-01-17T09:00:00.000Z",
+    "tags": ["materials", "design"]
+  },
+  {
+    "id": "post-3",
+    "slug": "a-field-guide-to-sit-stand-desks",
+    "title": "A Field Guide to Sit-Stand Desks",
+    "excerpt": "Motor count, wobble at height, and the specifications nobody prints on the box.",
+    "body": "Motor count matters less than frame geometry. A single-motor desk with a well-braced column will wobble less at full height than a dual-motor frame with a wide unsupported span.\n\nMeasure the wobble at your actual working height, not at the showroom's.",
+    "authorId": "u-2",
+    "publishedAt": "2026-01-24T09:00:00.000Z",
+    "tags": ["furniture", "buying-guide"]
+  },
+  {
+    "id": "post-4",
+    "slug": "the-case-for-fewer-better-layers",
+    "title": "The Case for Fewer, Better Layers",
+    "excerpt": "Three good layers beat seven mediocre ones in every condition we have tested.",
+    "body": "Three good layers beat seven mediocre ones in every condition we have tested. A base that moves moisture, a mid that traps air, and a shell that blocks weather will cover almost everything between minus ten and plus fifteen.\n\nMost overpacking is a hedge against not understanding the system.",
+    "authorId": "u-4",
+    "publishedAt": "2026-02-01T09:00:00.000Z",
+    "tags": ["apparel", "guides"]
+  },
+  {
+    "id": "post-5",
+    "slug": "brewing-notes-water-first",
+    "title": "Brewing Notes: Water First",
+    "excerpt": "Before you change your grinder, change your water. It is the cheaper experiment.",
+    "body": "Before you change your grinder, change your water. Coffee is ninety-eight percent water, and mineral content affects extraction more than most people expect.\n\nStart with filtered water at a moderate hardness and hold everything else constant for a week.",
+    "authorId": "u-4",
+    "publishedAt": "2026-02-08T09:00:00.000Z",
+    "tags": ["coffee", "guides"]
+  },
+  {
+    "id": "post-6",
+    "slug": "what-a-twelve-year-warranty-means",
+    "title": "What a Twelve-Year Warranty Actually Means",
+    "excerpt": "Warranties are a claim about failure rates. Read them as engineering documents.",
+    "body": "A warranty is a bet the manufacturer is making about failure rates, priced into the product. Read the exclusions before the headline number.\n\nTwelve years on the frame and two on the upholstery is a very different promise from twelve years on everything.",
+    "authorId": "u-1",
+    "publishedAt": "2026-02-15T09:00:00.000Z",
+    "tags": ["buying-guide"]
+  },
+  {
+    "id": "post-7",
+    "slug": "designing-for-repair",
+    "title": "Designing for Repair",
+    "excerpt": "Hot-swappable switches, replaceable straps, and why glue is a design decision.",
+    "body": "Hot-swappable switches, replaceable straps, and standard fasteners all cost more up front. They also mean a five-year-old product is worth fixing rather than replacing.\n\nGlue is not a manufacturing shortcut. It is a decision about how long you expect the thing to exist.",
+    "authorId": "u-2",
+    "publishedAt": "2026-02-22T09:00:00.000Z",
+    "tags": ["design", "sustainability"]
+  },
+  {
+    "id": "post-8",
+    "slug": "how-we-photograph-products",
+    "title": "How We Photograph Products",
+    "excerpt": "Consistent lighting, honest colour, and no lifestyle shots that hide the object.",
+    "body": "Consistent lighting and honest colour matter more than styling. A customer who receives a product that looks different from the listing will not trust the next listing either.\n\nWe shoot every product against the same grey card, then check the render on three uncalibrated laptop screens.",
+    "authorId": "u-4",
+    "publishedAt": "2026-03-01T09:00:00.000Z",
+    "tags": ["design", "process"]
+  },
+  {
+    "id": "post-9",
+    "slug": "inventory-is-a-promise",
+    "title": "Inventory Is a Promise",
+    "excerpt": "Showing something in stock when it is not costs more than the sale you lose by being honest.",
+    "body": "Showing something in stock when it is not costs more than the sale you lose by being honest. The refund is the cheap part; the trust is not.\n\nWe would rather show a restock date than an add-to-cart button we cannot honour.",
+    "authorId": "u-1",
+    "publishedAt": "2026-03-07T09:00:00.000Z",
+    "tags": ["operations"]
+  },
+  {
+    "id": "post-10",
+    "slug": "notes-on-caching-a-catalogue",
+    "title": "Notes on Caching a Catalogue",
+    "excerpt": "Product data changes rarely and stock changes constantly. Those need different strategies.",
+    "body": "Product data changes rarely and stock levels change constantly. Treating them as one cacheable unit means either stale stock or needlessly refetched descriptions.\n\nSplitting them let us cache the catalogue aggressively and leave availability uncached, which is the whole trick.",
+    "authorId": "u-1",
+    "publishedAt": "2026-03-14T09:00:00.000Z",
+    "tags": ["engineering", "performance"]
+  }
+]

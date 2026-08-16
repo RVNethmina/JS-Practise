@@ -1,0 +1,375 @@
+[
+  {
+    "id": "p-1",
+    "slug": "aurora-wireless-headphones",
+    "name": "Aurora Wireless Headphones",
+    "description": "Over-ear headphones with 40-hour battery life and a folding aluminium frame.",
+    "price": 24900,
+    "categoryId": "cat-electronics",
+    "tags": ["audio", "wireless", "bestseller"],
+    "inStock": true,
+    "createdAt": "2026-01-12T09:00:00.000Z",
+    "variants": []
+  },
+  {
+    "id": "p-2",
+    "slug": "nimbus-bluetooth-speaker",
+    "name": "Nimbus Bluetooth Speaker",
+    "description": "Palm-sized speaker with a surprisingly large low end. Water resistant.",
+    "price": 8900,
+    "categoryId": "cat-electronics",
+    "tags": ["audio", "portable"],
+    "inStock": true,
+    "createdAt": "2026-01-20T09:00:00.000Z",
+    "variants": []
+  },
+  {
+    "id": "p-3",
+    "slug": "vertex-mechanical-keyboard",
+    "name": "Vertex Mechanical Keyboard",
+    "description": "Hot-swappable 75% board with a machined aluminium case.",
+    "price": 15900,
+    "categoryId": "cat-electronics",
+    "tags": ["desk", "input", "bestseller"],
+    "inStock": true,
+    "createdAt": "2026-02-02T09:00:00.000Z",
+    "variants": [
+      {
+        "id": "v-1",
+        "productId": "p-3",
+        "name": "Tactile Brown",
+        "sku": "VTX-75-BRN",
+        "priceDelta": 0,
+        "inStock": true
+      },
+      {
+        "id": "v-2",
+        "productId": "p-3",
+        "name": "Linear Red",
+        "sku": "VTX-75-RED",
+        "priceDelta": 0,
+        "inStock": true
+      },
+      {
+        "id": "v-3",
+        "productId": "p-3",
+        "name": "Clicky Blue",
+        "sku": "VTX-75-BLU",
+        "priceDelta": 500,
+        "inStock": false
+      }
+    ]
+  },
+  {
+    "id": "p-4",
+    "slug": "halo-4k-webcam",
+    "name": "Halo 4K Webcam",
+    "description": "Fixed-focus 4K sensor with a physical privacy shutter.",
+    "price": 11900,
+    "categoryId": "cat-electronics",
+    "tags": ["desk", "video"],
+    "inStock": false,
+    "createdAt": "2026-02-14T09:00:00.000Z",
+    "variants": []
+  },
+  {
+    "id": "p-5",
+    "slug": "pulse-smartwatch",
+    "name": "Pulse Smartwatch",
+    "description": "Seven-day battery, sapphire crystal, and no subscription required.",
+    "price": 29900,
+    "categoryId": "cat-electronics",
+    "tags": ["wearable", "bestseller"],
+    "inStock": true,
+    "createdAt": "2026-02-28T09:00:00.000Z",
+    "variants": [
+      {
+        "id": "v-4",
+        "productId": "p-5",
+        "name": "Graphite Band",
+        "sku": "PLS-GRP",
+        "priceDelta": 0,
+        "inStock": true
+      },
+      {
+        "id": "v-5",
+        "productId": "p-5",
+        "name": "Sand Band",
+        "sku": "PLS-SND",
+        "priceDelta": 0,
+        "inStock": true
+      },
+      {
+        "id": "v-6",
+        "productId": "p-5",
+        "name": "Woven Steel Band",
+        "sku": "PLS-STL",
+        "priceDelta": 4000,
+        "inStock": true
+      }
+    ]
+  },
+  {
+    "id": "p-6",
+    "slug": "echo-noise-cancelling-earbuds",
+    "name": "Echo Noise-Cancelling Earbuds",
+    "description": "Adaptive noise cancelling with a transparency mode that sounds natural.",
+    "price": 17900,
+    "categoryId": "cat-electronics",
+    "tags": ["audio", "wireless"],
+    "inStock": true,
+    "createdAt": "2026-03-08T09:00:00.000Z",
+    "variants": []
+  },
+  {
+    "id": "p-7",
+    "slug": "meridian-standing-desk",
+    "name": "Meridian Standing Desk",
+    "description": "Dual-motor sit-stand frame with a solid oak top and cable tray.",
+    "price": 54900,
+    "categoryId": "cat-furniture",
+    "tags": ["desk", "office", "bestseller"],
+    "inStock": true,
+    "createdAt": "2026-01-05T09:00:00.000Z",
+    "variants": [
+      {
+        "id": "v-7",
+        "productId": "p-7",
+        "name": "140 x 70 cm",
+        "sku": "MRD-140",
+        "priceDelta": 0,
+        "inStock": true
+      },
+      {
+        "id": "v-8",
+        "productId": "p-7",
+        "name": "160 x 80 cm",
+        "sku": "MRD-160",
+        "priceDelta": 8000,
+        "inStock": true
+      }
+    ]
+  },
+  {
+    "id": "p-8",
+    "slug": "cobalt-ergonomic-chair",
+    "name": "Cobalt Ergonomic Chair",
+    "description": "Mesh back, adjustable lumbar support, and a twelve-year warranty.",
+    "price": 42900,
+    "categoryId": "cat-furniture",
+    "tags": ["office", "seating"],
+    "inStock": true,
+    "createdAt": "2026-01-18T09:00:00.000Z",
+    "variants": []
+  },
+  {
+    "id": "p-9",
+    "slug": "larkspur-bookshelf",
+    "name": "Larkspur Bookshelf",
+    "description": "Five-tier open shelving in powder-coated steel and ash.",
+    "price": 18900,
+    "categoryId": "cat-furniture",
+    "tags": ["storage", "living"],
+    "inStock": true,
+    "createdAt": "2026-02-09T09:00:00.000Z",
+    "variants": []
+  },
+  {
+    "id": "p-10",
+    "slug": "onyx-side-table",
+    "name": "Onyx Side Table",
+    "description": "Cantilevered side table that slides over the arm of a sofa.",
+    "price": 9900,
+    "categoryId": "cat-furniture",
+    "tags": ["living"],
+    "inStock": false,
+    "createdAt": "2026-02-21T09:00:00.000Z",
+    "variants": []
+  },
+  {
+    "id": "p-11",
+    "slug": "vesper-floor-lamp",
+    "name": "Vesper Floor Lamp",
+    "description": "Dimmable arc lamp with a linen shade and a weighted marble base.",
+    "price": 12900,
+    "categoryId": "cat-furniture",
+    "tags": ["lighting", "living"],
+    "inStock": true,
+    "createdAt": "2026-03-01T09:00:00.000Z",
+    "variants": []
+  },
+  {
+    "id": "p-12",
+    "slug": "drift-merino-sweater",
+    "name": "Drift Merino Sweater",
+    "description": "Mid-weight merino crewneck that resists odour and travels flat.",
+    "price": 13900,
+    "categoryId": "cat-apparel",
+    "tags": ["knitwear", "travel"],
+    "inStock": true,
+    "createdAt": "2026-01-09T09:00:00.000Z",
+    "variants": [
+      {
+        "id": "v-9",
+        "productId": "p-12",
+        "name": "Small",
+        "sku": "DRF-S",
+        "priceDelta": 0,
+        "inStock": true
+      },
+      {
+        "id": "v-10",
+        "productId": "p-12",
+        "name": "Medium",
+        "sku": "DRF-M",
+        "priceDelta": 0,
+        "inStock": true
+      },
+      {
+        "id": "v-11",
+        "productId": "p-12",
+        "name": "Large",
+        "sku": "DRF-L",
+        "priceDelta": 0,
+        "inStock": false
+      },
+      {
+        "id": "v-12",
+        "productId": "p-12",
+        "name": "Extra Large",
+        "sku": "DRF-XL",
+        "priceDelta": 0,
+        "inStock": true
+      }
+    ]
+  },
+  {
+    "id": "p-13",
+    "slug": "tundra-insulated-jacket",
+    "name": "Tundra Insulated Jacket",
+    "description": "Recycled synthetic fill rated to minus ten, packs into its own pocket.",
+    "price": 24900,
+    "categoryId": "cat-apparel",
+    "tags": ["outerwear", "winter", "bestseller"],
+    "inStock": true,
+    "createdAt": "2026-01-25T09:00:00.000Z",
+    "variants": [
+      {
+        "id": "v-13",
+        "productId": "p-13",
+        "name": "Small",
+        "sku": "TND-S",
+        "priceDelta": 0,
+        "inStock": true
+      },
+      {
+        "id": "v-14",
+        "productId": "p-13",
+        "name": "Medium",
+        "sku": "TND-M",
+        "priceDelta": 0,
+        "inStock": true
+      },
+      {
+        "id": "v-15",
+        "productId": "p-13",
+        "name": "Large",
+        "sku": "TND-L",
+        "priceDelta": 0,
+        "inStock": true
+      },
+      {
+        "id": "v-16",
+        "productId": "p-13",
+        "name": "Extra Large",
+        "sku": "TND-XL",
+        "priceDelta": 1000,
+        "inStock": false
+      }
+    ]
+  },
+  {
+    "id": "p-14",
+    "slug": "cascade-rain-shell",
+    "name": "Cascade Rain Shell",
+    "description": "Three-layer waterproof shell with pit zips and a helmet-compatible hood.",
+    "price": 19900,
+    "categoryId": "cat-apparel",
+    "tags": ["outerwear", "waterproof"],
+    "inStock": true,
+    "createdAt": "2026-02-11T09:00:00.000Z",
+    "variants": []
+  },
+  {
+    "id": "p-15",
+    "slug": "ember-wool-socks",
+    "name": "Ember Wool Socks",
+    "description": "Cushioned merino crew socks. Sold as a three-pack.",
+    "price": 2400,
+    "categoryId": "cat-apparel",
+    "tags": ["knitwear", "accessories"],
+    "inStock": true,
+    "createdAt": "2026-02-19T09:00:00.000Z",
+    "variants": []
+  },
+  {
+    "id": "p-16",
+    "slug": "slate-canvas-backpack",
+    "name": "Slate Canvas Backpack",
+    "description": "Waxed canvas roll-top with a padded sixteen-inch laptop sleeve.",
+    "price": 15900,
+    "categoryId": "cat-apparel",
+    "tags": ["accessories", "travel"],
+    "inStock": true,
+    "createdAt": "2026-03-04T09:00:00.000Z",
+    "variants": []
+  },
+  {
+    "id": "p-17",
+    "slug": "ceramic-pour-over-set",
+    "name": "Ceramic Pour-Over Set",
+    "description": "Glazed stoneware dripper and matching carafe. Takes standard filters.",
+    "price": 6900,
+    "categoryId": "cat-kitchen",
+    "tags": ["coffee", "brewing"],
+    "inStock": true,
+    "createdAt": "2026-01-15T09:00:00.000Z",
+    "variants": []
+  },
+  {
+    "id": "p-18",
+    "slug": "ironwood-chef-knife",
+    "name": "Ironwood Chef Knife",
+    "description": "Twenty-centimetre carbon steel blade with a stabilised ironwood handle.",
+    "price": 21900,
+    "categoryId": "cat-kitchen",
+    "tags": ["cookware", "bestseller"],
+    "inStock": true,
+    "createdAt": "2026-02-05T09:00:00.000Z",
+    "variants": []
+  },
+  {
+    "id": "p-19",
+    "slug": "copper-kettle",
+    "name": "Copper Kettle",
+    "description": "Gooseneck pouring kettle with a thermometer set into the lid.",
+    "price": 11900,
+    "categoryId": "cat-kitchen",
+    "tags": ["coffee", "brewing"],
+    "inStock": false,
+    "createdAt": "2026-02-24T09:00:00.000Z",
+    "variants": []
+  },
+  {
+    "id": "p-20",
+    "slug": "basalt-mortar-and-pestle",
+    "name": "Basalt Mortar and Pestle",
+    "description": "Heavy volcanic stone set that grinds spices without skating around.",
+    "price": 4900,
+    "categoryId": "cat-kitchen",
+    "tags": ["cookware"],
+    "inStock": true,
+    "createdAt": "2026-03-11T09:00:00.000Z",
+    "variants": []
+  }
+]

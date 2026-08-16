@@ -16,7 +16,7 @@ So: one app, fifteen phases, built by you.
 |---|---|---|
 | **Theory** | `C:\Hello\Notes\NextJs-Vault` | 50 notes. Read before each phase. |
 | **Briefs** | `04-NextJs/phases/` | 15 specs. What to build, how to verify. |
-| **The app** | `04-NextJs/practice-app/` | You build this. I don't touch it. |
+| **The app** | `04-NextJs/practise-app/` | You build this. I don't touch it. |
 
 Briefs contain **no solution code**. They are specifications — routes to create,
 requirements, acceptance criteria, and closed-book recall questions.
@@ -92,7 +92,7 @@ checks. That's not redundancy; the second pass is where the security thinking li
 **Running the app** — every "Done when" item is checkable in a browser:
 
 ```bash
-cd C:\Hello\My_Projects\JS-Practise\04-NextJs\practice-app && npm run dev
+cd C:\Hello\My_Projects\JS-Practise\04-NextJs\practise-app && npm run dev
 ```
 
 **The build output** — from Phase 9 onward this is your primary instrument. It marks
@@ -100,7 +100,7 @@ every route `○` static, `●` SSG, or `ƒ` dynamic, which is the only reliable
 confirm a rendering or caching change did what you intended:
 
 ```bash
-cd C:\Hello\My_Projects\JS-Practise\04-NextJs\practice-app && npm run build
+cd C:\Hello\My_Projects\JS-Practise\04-NextJs\practise-app && npm run build
 ```
 
 Get in the habit of reading that route table. One stray `cookies()` in a shared

@@ -12,7 +12,7 @@ Nothing. Skim [APP-SPEC.md](../APP-SPEC.md) so you know what you're heading towa
 From `04-NextJs/`:
 
 ```bash
-npx create-next-app@latest practice-app --typescript --app --eslint --no-src-dir --no-tailwind
+npx create-next-app@latest practise-app --typescript --app --eslint --no-src-dir --no-tailwind
 ```
 
 Say **yes** to the App Router, **no** to Tailwind (styling is a distraction here),
@@ -21,7 +21,7 @@ Say **yes** to the App Router, **no** to Tailwind (styling is a distraction here
 Then confirm it runs:
 
 ```bash
-cd practice-app && npm run dev
+cd practise-app && npm run dev
 ```
 
 ## Build

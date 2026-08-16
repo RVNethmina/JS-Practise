@@ -19,7 +19,7 @@ tracks at once.
 Find every `any` and every `as` in the app:
 
 ```bash
-cd practice-app && npx tsc --noEmit
+cd practise-app && npx tsc --noEmit
 grep -rn ": any\|as string\|as number\|as Product" app lib --include=*.ts --include=*.tsx
 ```
 

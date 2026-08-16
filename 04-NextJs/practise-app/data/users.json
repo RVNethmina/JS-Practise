@@ -1,0 +1,47 @@
+[
+  {
+    "id": "u-1",
+    "username": "ravindu",
+    "name": "Ravindu Nethmina",
+    "email": "admin@example.com",
+    "passwordHash": "admin123",
+    "role": "admin",
+    "createdAt": "2025-11-02T09:00:00.000Z"
+  },
+  {
+    "id": "u-2",
+    "username": "amara",
+    "name": "Amara Silva",
+    "email": "editor@example.com",
+    "passwordHash": "editor123",
+    "role": "editor",
+    "createdAt": "2025-12-14T09:00:00.000Z"
+  },
+  {
+    "id": "u-3",
+    "username": "dinuka",
+    "name": "Dinuka Perera",
+    "email": "viewer@example.com",
+    "passwordHash": "viewer123",
+    "role": "viewer",
+    "createdAt": "2026-01-08T09:00:00.000Z"
+  },
+  {
+    "id": "u-4",
+    "username": "kavindi",
+    "name": "Kavindi Fernando",
+    "email": "kavindi@example.com",
+    "passwordHash": "kavindi123",
+    "role": "editor",
+    "createdAt": "2026-01-30T09:00:00.000Z"
+  },
+  {
+    "id": "u-5",
+    "username": "tharindu",
+    "name": "Tharindu Jayasuriya",
+    "email": "tharindu@example.com",
+    "passwordHash": "tharindu123",
+    "role": "viewer",
+    "createdAt": "2026-02-17T09:00:00.000Z"
+  }
+]
