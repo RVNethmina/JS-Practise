@@ -94,13 +94,26 @@ export type Post = {
 };
 
 
-export type User = { 
+/**
+ * The three roles, extracted into their own type.
+ *
+ * You had this union written inline inside `User`. Pulling it out means:
+ *   - other files can import and use it (layouts, session helpers, guards)
+ *   - there's ONE place to edit when a role is added
+ *   - function signatures can say `role: Role` instead of repeating the union
+ *
+ * Keep it a literal union, never `string`. With `string`, a typo like
+ * "admni" compiles fine and silently never matches.
+ */
+export type Role = "admin" | "editor" | "viewer";
+
+export type User = {
     id: string;
     username: string;
     name: string;
     email: string;
     passwordHash: string;
-    role: "admin" | "editor" | "viewer";
+    role: Role;
     createdAt: string
 }
 
