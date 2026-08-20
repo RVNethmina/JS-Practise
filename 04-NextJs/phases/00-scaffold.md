@@ -1,73 +1,153 @@
 # Phase 0 — Scaffold and Data Layer
 
-No concepts yet. This phase exists so every later phase has something to build on.
-Move fast; nothing here is interview material.
+**Status: DONE.** You already built this. This file is now your **reference sheet** —
+the contract every later phase relies on. When a brief says "call `getProducts`",
+this page tells you what that returns.
 
-## Read first
+Nothing here is interview material. Come back to it to look things up.
 
-Nothing. Skim [APP-SPEC.md](../APP-SPEC.md) so you know what you're heading toward.
+---
 
-## Create the app
+## What exists
 
-From `04-NextJs/`:
-
-```bash
-npx create-next-app@latest practise-app --typescript --app --eslint --no-src-dir --no-tailwind
+```
+04-NextJs/practise-app/
+├── app/
+│   └── layout.tsx          root layout — the ONLY one with <html> and <body>
+├── data/
+│   ├── categories.json
+│   ├── docs.json
+│   ├── posts.json
+│   ├── products.json
+│   └── users.json
+└── lib/
+    ├── db.ts               async read functions over those JSON files
+    └── types.ts            every entity type
 ```
 
-Say **yes** to the App Router, **no** to Tailwind (styling is a distraction here),
-**no** to `src/`. Turbopack is fine either way.
+---
 
-Then confirm it runs:
+## The data types
 
-```bash
-cd practise-app && npm run dev
+From `lib/types.ts`. Import them with `import type { Product } from "@/lib/types";`
+
+| Type | Shape | Notes |
+|---|---|---|
+| `Product` | `id, slug, name, description, price, categoryId, tags[], inStock, createdAt, variants[]` | `price` is **integer cents** — 1999 means $19.99 |
+| `ProductVariant` | `id, productId, name, sku, priceDelta, inStock` | `priceDelta` is added to the parent price |
+| `Category` | `id, slug, name, description` | |
+| `Post` | `id, slug, title, excerpt, body, authorId, publishedAt, tags[]` | |
+| `User` | `id, username, name, email, passwordHash, role, createdAt` | |
+| `PublicUser` | `Omit<User, "passwordHash">` | **Always use this** for anything the browser sees |
+| `Doc` | `slug: string[], title, body` | `slug` is path segments; the index doc has `[]` |
+| `Role` | `"admin" \| "editor" \| "viewer"` | A literal union, never `string` |
+
+### Two rules that bite later
+
+**1. `price` is cents, not dollars.** Divide by 100 only when displaying:
+`${(product.price / 100).toFixed(2)}`. Doing money in floats causes rounding bugs.
+
+**2. `createdAt` is a `string`, not a `Date`.** A `Date` object **cannot** be passed
+from a Server Component to a Client Component — it isn't serializable and the pass
+fails. Keeping it as an ISO string means it's safe to pass anywhere. Parse to a
+`Date` only at the moment you format it. You'll hit this in Phase 3, Problem 5.
+
+---
+
+## The `lib/db.ts` functions
+
+Every one is `async` and artificially slow. **The delays are the point** — without
+them, `loading.tsx` never appears and Phases 7 and 9 teach you nothing.
+
+```
+DELAYS.fast = 300ms
+DELAYS.slow = 2000ms
 ```
 
-## Build
+| Function | Returns | Delay |
+|---|---|---|
+| `getProducts(options?)` | `Promise<ProductListResult>` | slow |
+| `getProduct(id)` | `Promise<Product \| null>` | fast |
+| `getCategories()` | `Promise<Category[]>` | fast |
+| `getCategory(slug)` | `Promise<Category \| null>` | fast |
+| `getPosts()` | `Promise<Post[]>` | fast |
+| `getPost(slug)` | `Promise<Post \| null>` | fast |
+| `getUsers()` | `Promise<PublicUser[]>` | fast |
+| `getUser(username)` | `Promise<PublicUser \| null>` | fast |
+| `getUserByEmail(email)` | `Promise<User \| null>` | fast |
+| `getDoc(slug: string[])` | `Promise<Doc \| null>` | fast |
+| `getStats()` | `Promise<DashboardStats>` | 800ms |
+| `getRecentOrders()` | `Promise<RecentOrder[]>` | 1200ms |
+| `getNotifications()` | `Promise<Notification[]>` | 600ms |
+| `getSalesRecords()` | `Promise<SalesRecord[]>` | fast, 10,000 rows |
 
-**1. `lib/types.ts`** — the entity types from [APP-SPEC.md](../APP-SPEC.md).
+### `getProducts` in detail
 
-Two rules that matter later: `User.role` is a literal union
-(`"admin" | "editor" | "viewer"`), never `string`. `Product.price` is an integer in
-cents.
+You'll use this more than anything else.
 
-**2. `data/*.json`** — seed files. Roughly 20 products over 4 categories with some
-variants, 10 posts, 8 docs at varying path depths, 5 users covering all three roles.
+**Input** — `GetProductsOptions`, all optional:
 
-Hand-write or generate it, doesn't matter. Make product names distinguishable so you
-can tell at a glance whether a page is showing stale data — that becomes important
-in Phase 11.
+```
+category?     filter by category SLUG ("electronics"), not categoryId
+search?       case-insensitive match on name + description
+tag?          only products carrying this tag
+inStockOnly?  boolean
+sort?         "newest" | "price-asc" | "price-desc" | "name"
+page?         1-based; below 1 is clamped to 1
+pageSize?     clamped to a maximum
+```
 
-**3. `lib/db.ts`** — read/write those JSON files.
+**Output** — `ProductListResult`:
 
-Implement only what you need now: `getProducts`, `getProduct`, `getCategories`,
-`getPosts`, `getPost`, `getUsers`, `getUser`. Add the rest as later phases demand
-them.
+```
+{ items: Product[], page: number, pageSize: number, total: number, totalPages: number }
+```
 
-**Every read function must be async and artificially slow.** Add a `sleep` helper
-and put `await sleep(300)` in each one. Make `getProducts` and one dashboard
-function ~2000ms.
+The metadata comes back with the items so you never need a second count query.
+Destructure what you need:
 
-This is not optional decoration. Without latency, `loading.tsx` never appears,
-Suspense boundaries never show a fallback, and Phases 7 and 9 teach you nothing
-because everything resolves instantly.
+```
+const { items, total } = await getProducts({ pageSize: 12 });
+```
 
-**4. `app/layout.tsx`** — the root layout. It's the only layout that renders
-`<html>` and `<body>`. Keep it to almost nothing.
+### The three functions that return `null`
 
-**5. `app/globals.css`** — a handful of rules so the app isn't unreadable. A max
-width, a readable font, some spacing. Twenty lines. Resist doing more.
+`getProduct`, `getPost`, `getUser`, `getCategory`, `getDoc` return `null` when
+nothing matches. TypeScript **forces** you to handle it — you cannot read `.name`
+off a `Product | null`. That's deliberate. Later phases call `notFound()` on the
+null branch.
 
-## Done when
+---
 
-- `npm run dev` serves the default page with no errors
-- `lib/db.ts` exports async functions returning typed data from the JSON files
-- Every read takes at least 300ms
-- `lib/types.ts` has no `any`
-- `npm run build` succeeds
+## Verify Phase 0 is sound
+
+Run each of these. All four must pass before any later phase makes sense.
+
+```bash
+cd C:\Hello\My_Projects\JS-Practise\04-NextJs\practise-app && npm run dev
+```
+
+1. Dev server starts with no errors
+2. `npx tsc --noEmit` reports nothing
+3. `npm run build` succeeds and prints a route table
+4. Open `lib/types.ts` — search for `any`. There should be none.
+
+---
+
+## Adding to `db.ts` later
+
+Some phases need write functions that don't exist yet:
+
+| Needed by | Functions |
+|---|---|
+| Phase 10 | `createProduct`, `updateProduct`, `deleteProduct` |
+| Phase 6, 7 | a `shouldFail` flag to trigger errors on demand |
+
+Add them when the brief asks, not before.
+
+---
 
 ## Not yet
 
 No route groups, no dynamic routes, no layouts beyond root, no fetching from
-components. Phase 1 starts the actual routing.
+components. **Phase 1 starts the actual routing.**

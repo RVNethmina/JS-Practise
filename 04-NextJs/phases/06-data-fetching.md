@@ -1,6 +1,6 @@
 # Phase 6 — Data Fetching
 
-Concept folder: **06-data-fetching** · 7 problems
+**7 problems + 1 lab** · Vault folder: `06-data-fetching`
 
 ## Read first
 
@@ -9,145 +9,288 @@ Concept folder: **06-data-fetching** · 7 problems
 
 ## What you're building
 
-Deeper data work: pagination, dependent data, deliberate waterfalls you then fix,
-and proper failure handling.
+Deeper data work: pagination, dependent data, deliberate waterfalls you then fix, and
+proper failure handling.
 
-Still reading `db` directly. `fetch` arrives in Phase 11 when there's an API to hit
-and a cache to observe.
+Still reading `db` **directly**. `fetch` arrives in Phase 11, when there's an API to
+hit and a cache to observe.
+
+## Set this up first — you need it for Problems 6 and 7
+
+Add a failure switch to `lib/db.ts`:
+
+```
+export let shouldFail = false;
+export function setShouldFail(v: boolean) { shouldFail = v; }
+```
+
+Then at the top of one or two read functions, throw when it's set. You'll flip this
+to trigger failures on demand for the rest of this phase and all of Phase 7.
 
 ---
 
-## Problem 1 — Fetch user list
+## Problem 1 — Harden the user list
+
+**Goal:** `/users` survives an empty dataset and a thrown error.
 
 **File:** `app/users/page.tsx` (extend Phase 3's version)
 
-Harden it. Type the result properly, handle an empty list, handle a throw from `db`.
+### Steps
 
-**Verify:** data in initial HTML; an empty dataset renders an empty state, not a
-crash.
+1. Type the result explicitly rather than relying on inference
+2. Handle `users.length === 0` — render an empty state, not a blank page
+3. Temporarily make `getUsers` throw and see what the raw failure looks like
+4. Leave it throwing for now — Phase 7 adds the boundary that catches it
+
+### What you need to know
+
+An empty array and a failed fetch are **different states** and need different UI.
+"No users yet" is information; a blank page is a bug report waiting to happen.
+
+### Verify
+
+1. Data appears in the initial HTML
+2. An empty dataset renders your empty state, not a crash
 
 ---
 
-## Problem 2 — Product list with cache annotations
+## Problem 2 — Cache annotations (preparation only)
+
+**Goal:** write down the three `fetch` caching modes before you need them.
 
 **File:** `app/(shop)/products/page.tsx`
 
-You have no `fetch` yet, so this is preparation. In comments at the top, write the
-three variants you'd use if this were `fetch`, and when each is right:
+### Steps
 
-```
-fetch(url)                              // Next 15+ default
-fetch(url, { cache: "force-cache" })
-fetch(url, { next: { revalidate: 60 } })
-```
+1. At the top of the file, add a comment block with all three variants and **when
+   each is right**:
+   ```
+   fetch(url)                               // Next 15+ default: NOT cached
+   fetch(url, { cache: "force-cache" })     // cache forever until revalidated
+   fetch(url, { next: { revalidate: 60 } }) // cache, refresh after 60s
+   ```
+2. Implement the page with `db` as usual
 
-Then implement the page with `db`.
+### What you need to know
 
-**Verify:** the page works. The comments are your Phase 11 starting point.
+**This changed between versions and it's a common interview question.** In Next 14,
+plain `fetch()` was cached by default. Since Next 15 it is **not**. Tutorials written
+for 14 will tell you the opposite.
+
+You have no `fetch` yet, so nothing to test. These comments are your Phase 11 starting
+point.
+
+### Verify
+
+The page still works. The comments are written.
 
 ---
 
-## Problem 3 — Product detail and request memoization
+## Problem 3 — Request memoization with `cache()`
+
+**Goal:** stop `getProduct` running twice per request.
 
 **File:** `app/(shop)/products/[id]/page.tsx`
 
-Extract a `getProduct(id)` helper used by **both** `generateMetadata` and the page.
+### Steps
 
-- Do **not** manually cache it
-- `console.log` inside and count the calls per request
-- Then wrap it in React's `cache()` and count again
+1. Make sure `generateMetadata` **and** the page both call `getProduct(id)`
+2. Put `console.log("DB HIT", id)` inside `getProduct` in `lib/db.ts`
+3. Load `/products/1` and **count the log lines. Write the number down.**
+4. Now wrap the function in React's `cache()`:
+   ```
+   import { cache } from "react";
+   export const getProduct = cache(async (id: string) => { ... });
+   ```
+5. Reload and **count again**
+6. Write both counts in a comment with a one-line explanation
 
-**Verify:** you can state the before and after counts, and explain the difference.
+### What you need to know
 
-`fetch` gets memoization automatically; a `db` call does not. That's exactly what
-`cache()` is for.
+You saw this in Phase 3 Problem 2 and were told to leave it. This is the fix.
+
+- **Before:** 2 calls — one from `generateMetadata`, one from the page
+- **After:** 1 call — the second gets the memoized result
+
+`cache()` deduplicates calls with **the same arguments** within **a single request**.
+It is not a persistent cache; it's gone when the request ends. That's exactly what you
+want here — no staleness risk, no invalidation to think about.
+
+**`fetch` gets this automatically. A `db` call does not.** That asymmetry is precisely
+what `cache()` exists to close.
+
+### Verify
+
+You can state the before and after counts and explain the difference in one sentence.
 
 ---
 
-## Problem 4 — Blog post
+## Problem 4 — Blog post detail
 
-**File:** `app/blog/[slug]/page.tsx`
+**Goal:** each post renders; a missing slug 404s.
 
-Extend Phase 5's version with a per-post view. `notFound()` for missing posts.
+**File:** `app/blog/[slug]/page.tsx` (extend Phase 5's version)
 
-Add a comment recording where `next: { revalidate: 3600 }` would go once this uses
-`fetch`.
+### Steps
 
-**Verify:** posts render; missing slugs 404.
+1. `await getPost(slug)`, `notFound()` on null
+2. Render title, date, body
+3. Add a comment marking **exactly where** `next: { revalidate: 3600 }` would go once
+   this uses `fetch`
+
+### Verify
+
+1. Posts render
+2. Missing slugs 404
+3. The comment marks the future revalidate location
 
 ---
 
-## Problem 5 — Paginated results
+## Problem 5 — Server-side pagination
+
+**Goal:** `/products?page=2` shows the second page, and Previous/Next work without
+losing other query params.
 
 **File:** `app/(shop)/products/page.tsx`
 
-Server-side pagination driven by `searchParams`.
+### Steps
 
-- Read `page`, default to 1
-- Fetch only that slice
-- Previous/Next links with `next/link`, **preserving other query params**
-- Disable Previous on page 1, Next on the last page
-- Handle a `page` beyond the end
+1. Read `page` from `searchParams`, defaulting to 1
+2. Parse it safely — handle `"abc"`, `"0"`, `"-5"`, and missing
+3. Pass it to `getProducts({ page, pageSize: 12 })`
+4. Use the returned `total` and `totalPages` for the controls
+5. Build Previous/Next as `<Link>`s that **preserve the other query params**
+6. Disable Previous on page 1 and Next on the last page
+7. Test `?page=999`
 
-**Verify:** navigating pages updates the URL and refetches. `?page=999` doesn't
-crash.
+### What you need to know
+
+`getProducts` returns the pagination metadata **with** the items:
+
+```
+{ items, page, pageSize, total, totalPages }
+```
+
+so you never need a second count query.
+
+**Step 5 is where people get this wrong.** Don't hardcode `href={"?page=" + n}` — that
+wipes out `?q=headphones` from the Phase 4 SearchBox. Copy the existing params with
+`new URLSearchParams`, change only `page`, and rebuild the string.
+
+That's the moment the URL-as-state idea pays off: the search term and the page number
+live in the same place and compose naturally.
+
+### Verify
+
+1. Navigating pages updates the URL and shows different products
+2. `?q=phone&page=2` keeps **both** when you click Next
+3. `?page=999` doesn't crash — shows an empty state or clamps
 
 ---
 
-## Problem 6 — Dependent data
+## Problem 6 — Dependent data, plus one independent fetch
+
+**Goal:** a genuine dependency chain, with an unrelated fetch running alongside it
+instead of behind it.
 
 **File:** `app/users/[username]/page.tsx`
 
-Fetch a user, then that user's posts using an id from the first response — a genuine
-dependency.
+### Steps
 
-Then add a **third** fetch that doesn't depend on either, and run it in parallel with
-the first.
+1. `await getUser(username)` — you need the user's `id` before anything else
+2. Use that id to fetch that user's posts — **genuinely dependent**, it cannot start
+   earlier
+3. Now add a **third** fetch that depends on neither, such as `getCategories()`
+4. Start the third one **in parallel with the first**, not after the chain
+5. Time all three approaches and comment the numbers
 
-Comment the timing of each approach.
+### What you need to know
 
-**Verify:** the independent fetch doesn't wait for the dependent chain. You measured
-it.
+**Not every waterfall is a bug.** Step 2 genuinely cannot start before step 1 finishes
+— you don't have the id yet. That's a *necessary* waterfall.
+
+Step 3 is a *bug* if you `await` it last, because it never needed to wait at all.
+
+The pattern for mixing them:
+
+```
+start the independent one (no await yet)
+await the first dependent one
+await the second dependent one
+await the independent one   ← it's been running the whole time
+```
+
+Remember: **calling starts the work, `await` only waits.**
+
+### Verify
+
+The independent fetch doesn't add to the total time. You measured it.
 
 ---
 
-## Problem 7 — Handle a failed request
+## Problem 7 — Handle a failed request, two ways
+
+**Goal:** know both failure strategies and when each is right.
 
 **Files:** `app/(shop)/products/page.tsx`, plus a lab route
 
-Two failure strategies:
+### Steps
 
-- **Version A** — throw, let an error boundary catch it (boundary arrives in Phase 7;
-  for now confirm the throw propagates)
-- **Version B** — catch locally, render an inline fallback with the rest of the page
-  intact
+1. **Version A — let it throw.** Don't catch. Flip `shouldFail` and watch the whole
+   route go down. (The boundary that catches this arrives in Phase 7; for now just
+   confirm the throw propagates.)
+2. **Version B — catch locally.** Wrap the call in `try/catch`, and in the catch
+   render an inline "couldn't load products" message **with the rest of the page
+   intact**
+3. Comment when each is right
 
-Comment when each is right.
+### What you need to know
 
-Add a `shouldFail` flag to a `db` function so you can trigger failure on demand.
+| | Version A — throw | Version B — catch |
+|---|---|---|
+| Effect | whole route replaced by error UI | one section degrades |
+| Right when | the data **is** the page | the data is one widget among many |
+| Example | product detail with no product | a "recommended items" sidebar |
 
-**Verify:** version B keeps the page usable; version A takes the route down.
+Rule of thumb: **if the page is meaningless without this data, throw. If the page is
+still useful, catch.**
+
+### Verify
+
+1. Version B keeps the page usable
+2. Version A takes the route down
 
 ---
 
-## Bonus lab — the waterfall
+## Bonus lab — the waterfall, side by side
+
+**Goal:** one page that makes the parallel-vs-sequential difference undeniable.
 
 **File:** `app/lab/waterfall/page.tsx`
 
-Two sections side by side: one doing three sequential awaits, one doing
-`Promise.all`. Render elapsed ms for each.
+### Steps
 
-**Verify:** the numbers differ by roughly 2×–3× with your `db` delays. Screenshot it
-mentally — this is the interview answer.
+1. Two sections on one page
+2. Section A: three sequential `await`s
+3. Section B: the same three in `Promise.all`
+4. Record `Date.now()` before and after each, render the elapsed ms
+5. Reload a few times
+
+### Verify
+
+The numbers differ by roughly 2×–3×. **This is the interview answer** — you'll be
+able to describe it from having watched it.
 
 ---
 
 ## Done when
 
-- Pagination works and preserves query params
+- Pagination works and preserves other query params
 - You have measured sequential vs parallel timings
-- `cache()` demonstrably reduces call counts
+- `cache()` demonstrably reduced the call count — you have both numbers
 - A deliberately failing fetch is handled both ways
+
+---
 
 ## Recall questions
 
@@ -159,10 +302,12 @@ mentally — this is the interview answer.
 4. When is a waterfall acceptable and when is it a bug?
 5. This page reads `searchParams` so it can't be static. Does that mean nothing about
    it can be cached?
-6. How would `<Suspense>` change the user experience of a waterfall without removing
-   the waterfall?
+6. How would `<Suspense>` change the user experience of a waterfall **without**
+   removing the waterfall?
+
+---
 
 ## Not yet
 
-No `loading.tsx` or `error.tsx` yet (Phase 7) — failures are raw. No `fetch`, no
-Data Cache (Phase 11).
+No `loading.tsx` or `error.tsx` yet (Phase 7) — failures are raw. No `fetch`, no Data
+Cache (Phase 11).

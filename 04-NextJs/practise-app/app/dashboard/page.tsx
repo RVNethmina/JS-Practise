@@ -1,56 +1,5 @@
 import { getStats, getRecentOrders, getNotifications } from "@/lib/db";
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   PHASE 3, PROBLEM 3 — fetch three things in PARALLEL
-
-   Three pieces of data. None depends on the others.
-
-     getStats()           takes  800ms
-     getRecentOrders()    takes 1200ms
-     getNotifications()   takes  600ms
-
-   ───────────────────────────────────────────────────────────────────────────
-   ❌ THE SLOW WAY — 2600ms
-
-     const stats  = await getStats();           // 800ms
-     const orders = await getRecentOrders();    // 1200ms
-     const notifs = await getNotifications();   // 600ms
-
-     0ms ────────── 800 ──────────────── 2000 ──────── 2600
-         │ getStats  │
-                     │ getRecentOrders   │
-                                         │ getNotifs │
-                                                     ▲ page renders
-
-     getRecentOrders() doesn't even START until getStats() has finished.
-     Total = the SUM. This shape is called a "request waterfall".
-
-   ───────────────────────────────────────────────────────────────────────────
-   ✅ THE FAST WAY — 1200ms
-
-     const [stats, orders, notifs] = await Promise.all([...]);
-
-     0ms ──────────────────────── 1200
-         │ getStats  │
-         │ getRecentOrders       │
-         │ getNotifs │
-                                 ▲ page renders
-
-     All three start immediately. Total = the SLOWEST one, not the sum.
-
-   ───────────────────────────────────────────────────────────────────────────
-   WHY IT WORKS — the one insight that matters
-
-     Calling a function STARTS the work.
-     `await` only WAITS for it.
-
-     Those are two separate moments. In the slow version the `await` is glued
-     onto the call, so the next request can't begin until the previous one has
-     completely finished.
-
-     In Promise.all, all three calls happen first — three requests are already
-     in flight — and only then do we wait.
-   ═══════════════════════════════════════════════════════════════════════════ */
+import FilterDashboardComponent from "./_components/Filters";
 
 export default async function DashboardPage() {
 
@@ -63,6 +12,8 @@ export default async function DashboardPage() {
 
     return (
         <div>
+            <FilterDashboardComponent />
+            
             <h1>Dashboard</h1>
             {/* ── Section 1: stats ─────────────────────────────────────── */}
             <section>
