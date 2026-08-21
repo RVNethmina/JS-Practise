@@ -175,3 +175,31 @@ button {
 .dropdown-menu li button:focus {
   background: #eee;
 }
+
+/* ── Contact form (Phase 4, Problem 5) ────────────────────────────────────── */
+
+.field {
+  margin-bottom: 1rem;
+  max-width: 28rem;
+}
+
+.field label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+
+.field input,
+.field textarea {
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  font: inherit;
+  border: 1px solid #999;
+  border-radius: 4px;
+}
+
+.field-error {
+  margin: 0.25rem 0 0;
+  color: #b91c1c;
+  font-size: 0.875rem;
+}
