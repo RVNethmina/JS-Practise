@@ -563,25 +563,55 @@ getting the boundary wrong.
 2. `Filters.tsx` is the Client Component holding date-range and category state
 3. Keep the Client Component **as small as you can** — only the interactive part
 4. Use `useMemo` for the filtered result
-5. Run `npm run build` and **write down the First Load JS** for `/dashboard`
+5. **Measure the "before" number** — see the box below
 6. **Now do it wrong:** move `"use client"` to the top of `page.tsx` instead
-7. Run `npm run build` again and write down the new number
+   (you'll also have to stop it being `async` — a Client Component can't be)
+7. Measure again
 8. Put it back
+
+### How to measure — this changed in Next 16
+
+> ⚠️ Most tutorials say "read the **First Load JS** column in `npm run build`".
+> **Next 16 removed that column.** From the official upgrade guide: the metrics
+> were *"inaccurate in server-driven architectures using React Server
+> Components"*. Don't go looking for it — it isn't there.
+
+Measure in the browser instead, which is closer to what a real visitor pays:
+
+```bash
+npm run build && npm start
+```
+
+Then on `/dashboard`: **DevTools → Network → the "JS" filter → hard-reload
+(Ctrl+F5)** and read **transferred** at the bottom of the panel.
+
+Do that before step 6 and again after step 7.
+
+There's also `npx next experimental-analyze`, which opens a breakdown of what's
+actually inside your bundles. Worth seeing once; the Network tab is enough here.
 
 ### What you need to know
 
 `useMemo` skips recomputing the filtered list when unrelated state changes. With a
 small array it doesn't matter; the habit does.
 
-Steps 5–7 are the real exercise. Marking a **high-level** component `"use client"`
-turns every component beneath it into a Client Component too — the whole subtree now
-ships to the browser. The two numbers are the measurable cost of a badly placed
-boundary. That comparison is a strong interview answer.
+**Steps 5–7 are the real exercise.** `"use client"` is not a per-file setting — it
+marks a **boundary**. That component *and everything it renders below it* becomes
+client code and ships to the browser.
+
+```
+"use client" on the small leaf   →  only that file ships
+"use client" on page.tsx         →  the whole dashboard ships
+```
+
+Same screen, same features, more download. That's what "push the boundary down"
+means, and *"I measured it, it went from X to Y"* is a far better interview answer
+than *"it's better for bundle size"*.
 
 ### Verify
 
-1. Filtering is instant, no network requests
-2. You have **both** First Load JS numbers written down
+1. Filtering is instant — check the Network tab, **no requests fire**
+2. You have **both** numbers written down
 
 ---
 

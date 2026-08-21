@@ -114,7 +114,13 @@ The route flipped to `ƒ`, and **you can point at the exact line** that caused i
 3. A **third** arrangement: a Client Component that wraps a Server Component passed as
    `children`
 4. **Draw the tree in a comment**, marking every node server or client
-5. Build and check **First Load JS** for this route
+5. Measure what actually ships: `npm run build && npm start`, then
+   **DevTools → Network → "JS" filter → hard-reload** and read *transferred*
+
+> ⚠️ Older tutorials say to read the **First Load JS** column from
+> `npm run build`. **Next 16 removed it** — the upgrade guide says those metrics
+> were *"inaccurate in server-driven architectures using React Server
+> Components"*. Measure in the browser, or use `npx next experimental-analyze`.
 
 ### What you need to know
 

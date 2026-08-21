@@ -1,21 +1,28 @@
 import { getStats, getRecentOrders, getNotifications } from "@/lib/db";
-import FilterDashboardComponent from "./_components/Filters";
+import Filters from "./_components/Filters";
+
+/* This page stays a SERVER component.
+
+   It fetches everything, then hands the orders down to <Filters />, which is
+   the only interactive part and the only thing that ships to the browser.
+
+   That split is the whole point of Problem 7 — see the measurement steps at
+   the bottom of Filters.tsx. */
 
 export default async function DashboardPage() {
-
+    // Phase 3, Problem 3: all three start at once, so this takes as long as
+    // the slowest one (1200ms) instead of the sum (2600ms).
     const [stats, orders, notifications] = await Promise.all([
         getStats(),
         getRecentOrders(),
         getNotifications(),
     ]);
 
-
     return (
         <div>
-            <FilterDashboardComponent />
-            
             <h1>Dashboard</h1>
-            {/* ── Section 1: stats ─────────────────────────────────────── */}
+
+            {/* ── Stats ────────────────────────────────────────────────── */}
             <section>
                 <h2>Overview</h2>
                 <ul>
@@ -26,20 +33,16 @@ export default async function DashboardPage() {
                 </ul>
             </section>
 
-            {/* ── Section 2: recent orders ─────────────────────────────── */}
-            <section>
-                <h2>Recent orders</h2>
-                <ul>
-                    {orders.map((order) => (
-                        <li key={order.id}>
-                            {order.productName} — {order.customer} — $
-                            {(order.total / 100).toFixed(2)}
-                        </li>
-                    ))}
-                </ul>
-            </section>
+            {/* ── Orders + filters ─────────────────────────────────────────
+                The server fetched `orders`. Filters just receives them as a
+                prop and narrows them in the browser.
 
-            {/* ── Section 3: notifications ─────────────────────────────── */}
+                Plain data crosses the boundary fine: strings and numbers.
+                Note RecentOrder.placedAt is a STRING, not a Date — a Date
+                object cannot be passed from server to client. */}
+            <Filters orders={orders} />
+
+            {/* ── Notifications ────────────────────────────────────────── */}
             <section>
                 <h2>Notifications</h2>
                 {notifications.length === 0 ? (

@@ -365,6 +365,16 @@ export type RecentOrder = {
   productName: string;
   customer: string;
   total: number;
+  /**
+   * ISO date string, NOT a Date object.
+   *
+   * Phase 4 Problem 7 passes these orders from a Server Component into a
+   * Client Component. A Date can't survive that trip — same rule as
+   * Product.createdAt. Parse to a Date only where you format it.
+   */
+  placedAt: string;
+  /** Category NAME (e.g. "Electronics"), resolved from the product. */
+  category: string;
 };
 
 export async function getRecentOrders(): Promise<RecentOrder[]> {
@@ -372,14 +382,30 @@ export async function getRecentOrders(): Promise<RecentOrder[]> {
 
   const products = await readJson<Product[]>("products.json");
   const users = await readJson<User[]>("users.json");
+  const categories = await readJson<Category[]>("categories.json");
 
   // Fake orders built from the seed data — no orders.json needed.
-  return products.slice(0, 5).map((product, i) => ({
-    id: `order-${i + 1}`,
-    productName: product.name,
-    customer: users[i % users.length].name,
-    total: product.price,
-  }));
+  // 20 of them, spread over the last 30 days across every category, so
+  // Phase 4's date-range and category filters have something to bite on.
+  return products.map((product, i) => {
+    const category = categories.find((c) => c.id === product.categoryId);
+
+    // Deterministic, not random: a random date would differ between the
+    // server render and the client hydration, which is exactly the
+    // hydration mismatch Problem 6 was about.
+    const daysAgo = (i * 7) % 30;
+    const placed = new Date("2026-08-21T12:00:00.000Z");
+    placed.setUTCDate(placed.getUTCDate() - daysAgo);
+
+    return {
+      id: `order-${i + 1}`,
+      productName: product.name,
+      customer: users[i % users.length].name,
+      total: product.price,
+      placedAt: placed.toISOString(),
+      category: category?.name ?? "Uncategorised",
+    };
+  });
 }
 
 export type Notification = {
