@@ -203,3 +203,29 @@ button {
   color: #b91c1c;
   font-size: 0.875rem;
 }
+
+/* ── Theme toggle (Phase 4, Problem 6) ────────────────────────────────────── */
+/* ThemeToggle sets data-theme="dark" on the <html> tag. These rules react
+   to that, which is how clicking the button changes the page. */
+
+html[data-theme="dark"] body {
+  background: #16181d;
+  color: #e6e6e6;
+}
+
+html[data-theme="dark"] a {
+  color: #8ab4f8;
+}
+
+html[data-theme="dark"] .field input,
+html[data-theme="dark"] .field textarea {
+  background: #23262d;
+  color: #e6e6e6;
+  border-color: #444;
+}
+
+html[data-theme="dark"] button {
+  background: #2a2e37;
+  color: #e6e6e6;
+  border: 1px solid #444;
+}

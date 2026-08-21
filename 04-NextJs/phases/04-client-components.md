@@ -447,31 +447,99 @@ you what the ref's position means better than any paragraph.
 
 **Goal:** a theme choice that survives a full reload, with no hydration warning.
 
-**Files:** `app/lab/hydration/page.tsx`, `app/_components/ThemeToggle.tsx`
+**Files:**
+- `app/_components/ThemeToggle.tsx` — the working version
+- `app/lab/hydration/page.tsx` — a page to try it on
+- `app/lab/hydration/_components/BrokenThemeToggle.tsx` — for seeing the error
 
-### Steps — do it wrong first, on purpose
+### Why this is hard
 
-1. Write the component reading `localStorage` **during render**:
-   ```
-   const [theme, setTheme] = useState(localStorage.getItem("theme") ?? "light");
-   ```
-2. Load the page. **Read the console error in full and write down what it says.**
-3. **Now fix it:**
-   - Start with a fixed default: `useState("light")`
+Your component runs **twice**:
+
+```
+1st  on the SERVER   → builds the HTML sent to the browser
+2nd  in the BROWSER  → makes it interactive ("hydration")
+```
+
+React compares the two. **If they don't match, you get a hydration error.**
+
+And `localStorage` only exists in the browser. The server has no idea what theme
+you picked. So reading it while drawing makes the two runs disagree.
+
+### There are TWO ways to break this, and they give DIFFERENT errors
+
+People mix these up constantly, so do both.
+
+**Break #1 — read `localStorage` during render:**
+
+```
+const [theme, setTheme] = useState(localStorage.getItem("theme") ?? "light");
+```
+
+This does **not** give a hydration error. It gives a **crash**:
+
+```
+ReferenceError: localStorage is not defined
+```
+
+There's no browser on the server, so there's no `localStorage` at all. The code
+dies before hydration is ever reached.
+
+**Break #2 — guard it so it survives the server:**
+
+```
+typeof window !== "undefined" ? localStorage.getItem("theme") : "light"
+```
+
+Now it survives the server (`"light"`) *and* runs in the browser (`"dark"`). No
+crash — but the two drawings disagree, and **that** is a real hydration mismatch.
+
+Break #2 is the sneaky one, and it's what people actually ship, because "just add
+a `typeof window` check" looks like a fix.
+
+### Steps
+
+1. Try Break #1 and read the crash
+2. Try Break #2 — `BrokenThemeToggle.tsx` is already written for this; swap the
+   import in `page.tsx` as its comments describe. **Write down the error text.**
+3. **Now build the working version:**
+   - Start with a fixed default: `useState<Theme>("light")`
    - Add `const [mounted, setMounted] = useState(false)`
-   - In a `useEffect`, read `localStorage` and call both setters
+   - **Effect 1** — deps `[]`, runs once: read `localStorage`, `setTheme`,
+     **and `setMounted(true)`**
+   - **Effect 2** — deps `[theme, mounted]`: write `localStorage` and apply the
+     theme to the page
    - While `!mounted`, render a neutral placeholder
-4. Write the value back to `localStorage` whenever the theme changes
+4. Add CSS that reacts to `data-theme` so the page visibly changes
 
 ### What you need to know
 
-**Why the broken version breaks:** the component renders **twice** — once on the
-server, once in the browser. The server has no `localStorage`. So the server produces
-one HTML output and the browser produces a different one, React compares them, they
-don't match, and you get a **hydration mismatch**.
+**Why the fix works.** `useEffect` **never runs on the server**. So:
 
-The fix works because `useEffect` **only runs in the browser, after hydration is
-finished**. By then React has already matched the two renders successfully.
+```
+server render      mounted = false  →  placeholder
+browser 1st draw   mounted = false  →  placeholder   ← SAME, no error
+effect runs        mounted = true   →  the real button
+```
+
+React only compares the **first** browser draw against the server's HTML. Match
+those two and you're fine — everything after is free.
+
+**Why two separate effects.** One effect that reads storage, writes storage, and
+calls `setTheme` — with `[theme]` as its dependency — changes the very thing it's
+watching. Split by job:
+
+| Effect | Deps | Job |
+|---|---|---|
+| 1 | `[]` | **reads** the saved theme, once |
+| 2 | `[theme, mounted]` | **writes** it and applies it |
+
+Effect 2 needs an `if (!mounted) return` guard, or its first run overwrites your
+saved `"dark"` with the default `"light"` before Effect 1 can read it.
+
+**The same shape causes every hydration mismatch** — anything the server can't
+know: `localStorage`, `window`, `document`, `new Date()`, `Math.random()`. The fix
+is always the same: draw something neutral, then correct it in `useEffect`.
 
 ### Verify
 
