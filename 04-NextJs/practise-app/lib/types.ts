@@ -21,16 +21,6 @@ export type Product = {
   variants: ProductVariant[];
 };
 
-/**
- * Why `createdAt` is a string and not a Date:
- *
- * A Date object cannot cross the server-to-client boundary — it isn't
- * serializable, so passing one as a prop from a Server Component to a Client
- * Component fails. Keeping it as an ISO string means the type is safe to pass
- * anywhere. Parse to a Date only at the point of formatting.
- *
- * You'll hit this properly in Phase 3, Problem 5.
- */
 
 
 export type ProductSort = "newest" | "price-asc" | "price-desc" | "name";
