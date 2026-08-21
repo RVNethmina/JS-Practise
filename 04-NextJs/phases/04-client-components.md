@@ -279,26 +279,121 @@ path turns green — clicking the text you're reading closes the dialog.
 
 **Goal:** a menu that closes when you click anywhere outside it.
 
-**File:** `app/_components/Dropdown.tsx`
+**Files:**
+- `app/_components/Dropdown.tsx` — the dropdown (client)
+- `app/lab/dropdown/page.tsx` — a page to try it on (server)
+
+### The mental model
+
+**The problem.** Your component can only see clicks on its own buttons — that's
+all `onClick` does. Someone clicks a paragraph at the bottom of the page? Your
+component hears nothing.
+
+So you ask **the whole page** to tell you about every click, and then sort them
+into two piles.
+
+**Step 1 — decide what "inside" means.** You put `ref={containerRef}` on one
+div. Everything in that div is inside. Everything else in the world is outside.
+
+```mermaid
+graph TD
+    subgraph INSIDE["✅ INSIDE — the div holding ref={containerRef}"]
+        BTN["the button you click<br/>to open the menu"]
+        MENU["the menu items"]
+    end
+
+    subgraph OUTSIDE["❌ OUTSIDE — literally everything else"]
+        TEXT["paragraphs"]
+        HEAD["headings"]
+        OTHER["other buttons"]
+        BODY["empty space on the page"]
+    end
+
+    style BTN fill:#2d6a4f,color:#fff
+    style MENU fill:#2d6a4f,color:#fff
+    style TEXT fill:#7f1d1d,color:#fff
+    style HEAD fill:#7f1d1d,color:#fff
+    style OTHER fill:#7f1d1d,color:#fff
+    style BODY fill:#7f1d1d,color:#fff
+```
+
+**Step 2 — sort every click into one of those piles.**
+
+```mermaid
+graph TD
+    CLICK["👆 someone clicks<br/>somewhere on the page"]
+    PAGE["the whole page tells us about it<br/><i>document.addEventListener</i>"]
+    ASK{"we ask our div:<br/><b>was that click inside you?</b><br/><i>containerRef.current.contains(...)</i>"}
+    YES["✅ yes<br/>it was our button<br/>or a menu item<br/><br/><b>leave the menu open</b>"]
+    NO["❌ no<br/>it was somewhere else<br/><br/><b>setIsOpen(false)</b>"]
+
+    CLICK --> PAGE
+    PAGE --> ASK
+    ASK -->|inside| YES
+    ASK -->|outside| NO
+
+    style CLICK fill:#78350f,color:#fff
+    style PAGE fill:#1e40af,color:#fff
+    style ASK fill:#5b21b6,color:#fff
+    style YES fill:#2d6a4f,color:#fff
+    style NO fill:#7f1d1d,color:#fff
+```
+
+That's the whole feature. The rest is wiring.
 
 ### Steps
 
 1. `"use client"`, `useState` for open/closed
 2. `useRef` on the container `<div>`
-3. In a `useEffect`, add a `click` listener on `document`
-4. In the handler, if `ref.current` does **not** contain the click target, close
-5. Clean up the listener
+3. In a `useEffect`, listen for `mousedown` on `document`
+4. In the handler: if `ref.current` does **not** contain the click target, close
+5. **Return a cleanup function** that stops the listening
 6. Escape also closes it
 7. **Then remove `"use client"`** and load the page
 
 ### What you need to know
 
-`useRef` gives you the actual DOM node. `ref.current.contains(event.target)` answers
-"was this click inside me?" — that's the standard outside-click pattern.
+**A ref is a box.** It starts empty. Writing `ref={containerRef}` on a div tells
+React: *"when you put that div on the page, drop it in this box."* After that,
+`containerRef.current` **is** that div — the real one, same as
+`document.getElementById` would give you.
 
-Step 7 is the lesson. Read the error carefully and note **where it happens**: it
-fails on the **server**, at render time, because `document` doesn't exist there. Not
-in the browser. Server Components run in Node, which has no DOM.
+You want it because you have to ask the div a question, and to ask it you must
+be holding it.
+
+**`useState` vs `useRef`:**
+
+| | Use it when |
+|---|---|
+| `useState` | changing it should update what's on screen |
+| `useRef` | you just need to hold onto something |
+
+Changing a ref does **not** redraw the component. Here you hold a div to ask it
+questions — you never display it. So: ref.
+
+**Cleanup (step 5) is not optional.** You asked the page to tell you about
+clicks; you must remember to say *"stop telling me."* Skip it and:
+
+```
+open the menu            → page tells us about clicks (1×)
+close it, open it again  → page tells us TWICE
+again                    → THREE times
+```
+
+Nobody cancelled the old ones. Your close code runs over and over for one click.
+
+**Step 7 is the lesson.** Read the error and notice **where** it happens: on the
+**server**, while rendering — not in the browser. Server code runs in Node, and
+Node has no web page. There's no `document` to listen to, and `useState`,
+`useEffect` and `useRef` don't exist there either.
+
+### The experiment worth doing
+
+Move `ref={containerRef}` from the outer `<div>` onto the `<ul>`.
+
+Now the button counts as **outside**. So clicking it opens the menu and instantly
+closes it — the menu becomes impossible to open. Thirty seconds, and it teaches
+you what the ref's position means better than any paragraph.
 
 ### Verify
 
