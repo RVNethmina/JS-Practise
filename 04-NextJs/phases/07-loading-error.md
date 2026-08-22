@@ -2,19 +2,19 @@
 
 **6 problems** · Vault folder: `07-loading-error`
 
-> This phase is **why `lib/db.ts` has artificial delays.** Without them, nothing here
-> is visible. If a loading state flashes past too fast to see, raise the delay in
-> `db.ts` temporarily.
+> This phase is **why `lib/db.ts` has artificial delays.** Without them nothing here
+> is visible. If a loading state flashes past too fast to see, temporarily raise a
+> delay in `db.ts`.
 
 ## Read first
 
 - `NextJs-Vault/07-loading-error/loading.tsx and Suspense.md`
 - `NextJs-Vault/07-loading-error/not-found and Error Boundaries.md`
 
-## The one idea in this phase
+## The one idea
 
-Three more **reserved filenames**, each dropped beside a `page.tsx`. You never import
-or wire them — Next.js finds them by name and applies them to that route segment and
+Three more **reserved filenames**, dropped beside a `page.tsx`. You never import or
+wire them — Next finds them by name and applies them to that route segment and
 everything below it.
 
 | File | Fires when | Server or Client? |
@@ -23,35 +23,45 @@ everything below it.
 | `error.tsx` | anything in the segment throws | **Client — mandatory** |
 | `not-found.tsx` | `notFound()` is called | Server |
 
-`loading.tsx` is **sugar**: Next wraps your `page.tsx` in a `<Suspense>` boundary and
-uses your file as the fallback. Knowing that is a common interview question.
+## What you'll have built by the end
+
+```
+app/dashboard/loading.tsx               ← P1  new
+app/dashboard/error.tsx                 ← P3  new
+app/dashboard/analytics/page.tsx        ← P3  new, throws on demand
+app/dashboard/analytics/error.tsx       ← P5  new, extended in P6
+app/(shop)/products/loading.tsx         ← P2  new
+app/(shop)/products/[id]/not-found.tsx  ← P4  new
+lib/db.ts                               ← P3 and P6 additions
+app/globals.css                         ← P2 skeleton class
+```
 
 ---
 
 ## Problem 1 — Dashboard loading state
 
-**Goal:** navigating to `/dashboard` shows a loading state instead of a frozen screen.
+**Goal:** navigating to `/dashboard` shows a loading message instead of a frozen
+screen for ~1.2 seconds.
 
-**File:** `app/dashboard/loading.tsx`
+**File:** `app/dashboard/loading.tsx` *(new)*
 
-### Steps
+### Build
 
-1. Create `loading.tsx` **beside** `app/dashboard/page.tsx`
-2. `export default` a function returning a simple "Loading dashboard…" message
-3. **Do not** make it `async` — it must render instantly
-4. Navigate to `/dashboard` and watch
+1. `export default function DashboardLoading()`
+2. Return `<p>Loading dashboard…</p>` — that is genuinely all
+3. **Do not** make it `async`, and give it no props
 
-### What you need to know
+### Why
 
-- **No imports, no wiring.** The filename is the entire API.
-- It must be **synchronous**. An `async` loading component would itself need to load,
-  which defeats the point.
-- It applies to `/dashboard` **and every route beneath it** that doesn't have its own.
+`loading.tsx` is sugar: Next wraps your `page.tsx` in `<Suspense>` and uses this file
+as the fallback. Knowing that is a common interview question.
 
-### Verify
+It must be synchronous — an `async` loading component would itself need to load.
 
-You see the loading state before the dashboard appears. If it's too fast, raise the
-`db.ts` delay temporarily.
+### Test
+
+Navigate to `/dashboard` with `npm run dev`. You see the message, then the dashboard.
+It covers `/dashboard/settings` too, since those pages have no `loading.tsx` of their own.
 
 ---
 
@@ -59,73 +69,94 @@ You see the loading state before the dashboard appears. If it's too fast, raise 
 
 **Goal:** a skeleton shaped like the real content, so nothing jumps when data arrives.
 
-**File:** `app/(shop)/products/loading.tsx`
+**Files:** `app/(shop)/products/loading.tsx` *(new)*, `app/globals.css` *(edit)*
 
-### Steps
+### Build
 
-1. Create the file beside the products page
-2. Render a fixed number of placeholder cards — grey blocks
-3. **Match the real layout's dimensions** — same widths, heights, spacing, grid
-4. Add `aria-busy="true"` on the container
-5. Add a visually-hidden "Loading products" label for screen readers
-6. Reload and watch the swap closely
+1. Container `<div>` with `aria-busy="true"`
+2. A visually-hidden `<span>` reading "Loading products", for screen readers
+3. Six placeholder rows — matching `pageSize: 6` on the real page
+4. Add a `.skeleton-row` class to `globals.css`: fixed height, grey background,
+   rounded corners, bottom margin
+5. Match the real list's width and spacing
 
-### What you need to know
+### Why
 
-**Why a shaped skeleton beats a spinner:** a spinner is the wrong size, so when real
-content arrives the page **jumps**. That jump is measured as **Cumulative Layout
-Shift (CLS)**, a Core Web Vital that affects your search ranking. Know that name.
+A spinner is the wrong size, so real content arriving makes the page **jump**. That
+jump is measured as **Cumulative Layout Shift (CLS)**, a Core Web Vital that affects
+search ranking. Know that name.
 
-A skeleton that matches dimensions produces zero shift — the grey blocks are simply
-replaced in place.
+### Test
 
-`aria-busy` tells assistive tech the region is updating, so it isn't announced as
-finished content.
-
-### Verify
-
-**No visible jump** when real content replaces the skeleton.
+Load `/products` and watch the swap. **No visible jump.** `getProducts` has a 2000ms
+delay, so you get a good look.
 
 ---
 
 ## Problem 3 — Dashboard error boundary
 
-**Goal:** a thrown error shows your UI instead of crashing the route.
+**Goal:** a thrown error shows your UI instead of a crash.
 
-**File:** `app/dashboard/error.tsx`
+**Files:** `lib/db.ts` *(edit)*, `app/dashboard/analytics/page.tsx` *(new)*,
+`app/dashboard/error.tsx` *(new)*
 
-### Steps
+### 3a. Add to `lib/db.ts`
 
-1. `"use client"` as the **first line — this is not optional**
-2. Type the props exactly:
+```ts
+export type AnalyticsSummary = {
+  pageViews: number;
+  conversionRate: number;
+  topReferrer: string;
+};
+
+export async function getAnalytics(
+  options: { fail?: boolean } = {}
+): Promise<AnalyticsSummary>
+```
+
+- `await sleep(DELAYS.fast)` first
+- If `options.fail` is true, `throw new Error("Analytics provider timed out")`
+- Otherwise return three plausible hardcoded numbers
+
+### 3b. `app/dashboard/analytics/page.tsx`
+
+- Props: `searchParams: Promise<{ [key: string]: string | string[] | undefined }>`
+- Read `?fail=1`, pass it as `getAnalytics({ fail })`
+- Render the three numbers, plus links to `?fail=1` and back
+
+> Reading `searchParams` makes this route **dynamic**. Expected — note it, Phase 9
+> re-baselines the whole build table.
+
+### 3c. `app/dashboard/error.tsx`
+
+1. `"use client"` as the **first line — not optional**
+2. Props typed exactly:
+   ```ts
+   { error: Error & { digest?: string }; reset: () => void }
    ```
-   { error: Error & { digest?: string }, reset: () => void }
-   ```
-3. Log the error in a `useEffect`
-4. Display a **friendly message**, not `error.message` raw
-5. **Comment why** you're not showing the raw message
-6. Flip `shouldFail` from Phase 6 and confirm this UI appears
-7. Then run `npm run build && npm start` and trigger it again in **production mode**
-8. Compare what `error.message` contains in dev versus prod
+3. `useEffect(() => { console.error(error); }, [error])`
+4. Render a **friendly** message — **not** `error.message`
+5. Show `error.digest` in small text when present
+6. A button calling `reset()`
+7. Comment why you don't show the raw message
 
-### What you need to know
+### Why `"use client"` is mandatory
 
-**Why `"use client"` is mandatory:** error boundaries use React's
-`componentDidCatch` mechanism, which only exists in client-side React. There is no
-server equivalent. This is a hard requirement, not a style choice.
+Error boundaries use React's `componentDidCatch`, which only exists in client-side
+React. There is no server equivalent. A hard requirement, not a style choice.
 
-**Steps 7–8 are the real lesson.** In production, Next **replaces** the real error
-message with a generic one and gives you a `digest` — a hash you can match against
-your server logs.
+### Test
 
-Why: the real message might contain a database connection string, a file path, or an
-internal ID. Sending that to a browser hands an attacker a map of your system. The
-digest lets *you* find the error without telling *them* anything.
+| URL | Expect |
+|---|---|
+| `/dashboard/analytics` | 200, three numbers |
+| `/dashboard/analytics?fail=1` | your error UI — **and the dashboard nav and sidebar still visible**, because the boundary renders inside the layout |
 
-### Verify
-
-1. Triggering the failure shows your UI, not a crash
-2. You can state the difference between the dev and prod `error.message`
+Then run `npm run build && npm start` and hit `?fail=1` again. **Compare
+`error.message` in dev versus production.** In prod, Next replaces it with a generic
+string and gives you a `digest` hash — because the real message could contain a
+connection string or a file path. The digest lets *you* find it in your logs without
+handing an attacker a map.
 
 ---
 
@@ -133,118 +164,138 @@ digest lets *you* find the error without telling *them* anything.
 
 **Goal:** a missing product shows custom UI **and** returns a real 404 status.
 
-**File:** `app/(shop)/products/[id]/not-found.tsx`
+**File:** `app/(shop)/products/[id]/not-found.tsx` *(new)*
 
-### Steps
+### Build
 
-1. Create the file in the `[id]` folder
-2. It is a **Server Component** — no `"use client"`, unlike `error.tsx`
-3. Friendly message plus a `<Link>` back to `/products`
-4. Visit an invalid id and **check the Network tab status code**
+1. A **Server** Component — no `"use client"`, unlike `error.tsx`
+2. Heading "Product not found", one sentence, and a `<Link href="/products">`
+   **with text between the tags**
+3. No props — `not-found.tsx` receives none
 
-### What you need to know
+### Why
 
-Three differences from `error.tsx`, worth memorising:
+`notFound()` isn't a failure — it's an expected outcome with a correct HTTP status.
+Errors are unexpected. Three differences worth memorising:
 
 | | `not-found.tsx` | `error.tsx` |
 |---|---|---|
 | Component type | Server | **Client** |
 | Triggered by | `notFound()` | any throw |
-| Has a `reset` | no | yes |
+| Has `reset` | no | yes |
 
-`notFound()` isn't a failure — it's an expected outcome with a correct HTTP status.
-Errors are unexpected.
+### Test
 
-### Verify
-
-**Network tab shows 404**, not 200. Check the status, not the pixels.
+`/products/p-9999` shows your UI, and the **Network tab shows 404**, not 200. Check
+the status, not the pixels — a "404 page" returning 200 gets indexed by search engines.
 
 ---
 
-## Problem 5 — Nested error boundaries
+## Problem 5 — Nested error boundary
 
-**Goal:** one broken section doesn't take down the whole dashboard.
+**Goal:** one broken section stops taking down the whole dashboard.
 
-**Files:** `app/dashboard/error.tsx`, `app/dashboard/analytics/error.tsx`,
-`app/dashboard/analytics/page.tsx`
+**File:** `app/dashboard/analytics/error.tsx` *(new)*
 
-### Steps
+### Build
 
-1. Create `app/dashboard/analytics/page.tsx` that throws
-2. Give it its **own** `error.tsx` in that folder
-3. Confirm `/dashboard/analytics` shows the analytics error while the rest of the
-   dashboard still works
-4. **Then the experiment:** throw an error inside `app/dashboard/layout.tsx` itself
-5. Observe which boundary catches it
+1. Same shape as P3's — `"use client"`, same props
+2. A message specific to analytics, e.g. "Analytics is unavailable."
+3. A `reset()` button
 
-### What you need to know
+### Test — the comparison IS the problem
 
-Error boundaries work like layouts — **the nearest one up the tree wins.** A more
-specific boundary contains the blast radius.
+Load `/dashboard/analytics?fail=1` **before** and **after** adding this file:
 
-**Step 4 is the subtle part.** `app/dashboard/error.tsx` does **not** catch an error
-thrown by `app/dashboard/layout.tsx`. The boundary is rendered *inside* that layout,
-so if the layout itself fails, the boundary never got created. The error escapes to
-the **parent** segment's boundary.
+| | Before P5 | After P5 |
+|---|---|---|
+| Who catches it | `dashboard/error.tsx` | `analytics/error.tsx` |
+| What you see | whole dashboard content replaced | only the analytics panel replaced |
 
-That has a practical consequence: to protect a layout, the boundary must live **one
-level up**.
+The nearest boundary up the tree wins, so a more specific one contains the blast radius.
 
-### Verify
+### Then the layout experiment
 
-1. Breaking analytics leaves the rest of the dashboard usable
-2. The layout error is **not** caught by `dashboard/error.tsx` — you've seen it and
-   can explain why
+Temporarily add `throw new Error("layout boom");` at the top of
+`app/dashboard/layout.tsx`, and load `/dashboard`.
+
+**`app/dashboard/error.tsx` does NOT catch it.** That boundary renders *inside* the
+layout, so when the layout itself fails the boundary was never created. The error
+escapes to the parent segment.
+
+Practical consequence: **to protect a layout, the boundary must live one level up.**
+Remove the throw afterwards.
 
 ---
 
 ## Problem 6 — Retry button
 
-**Goal:** a Retry button that genuinely recovers from an intermittent failure.
+**Goal:** a Retry that genuinely recovers, and gives up after 3 tries.
 
-**File:** `app/dashboard/error.tsx`
+**Files:** `lib/db.ts` *(edit)*, `app/dashboard/analytics/page.tsx` *(edit)*,
+`app/dashboard/analytics/error.tsx` *(edit)*
 
-### Steps
+### 6a. Make the failure intermittent — add to `lib/db.ts`
 
-1. Make your failure **intermittent**: fail the first two calls, then succeed
-2. Add a button calling `reset()`
-3. Track attempts with `useState`; after 3 failures, stop offering retry and show a
-   permanent message instead
+```ts
+let analyticsAttempts = 0;
+
+export async function getFlakyAnalytics(): Promise<AnalyticsSummary> {
+  analyticsAttempts++;
+  await sleep(DELAYS.fast);
+
+  if (analyticsAttempts <= 2) {
+    throw new Error(`Analytics timed out (attempt ${analyticsAttempts})`);
+  }
+
+  return { pageViews: 12043, conversionRate: 2.4, topReferrer: "google.com" };
+}
+```
+
+Fails the first two calls, succeeds from the third. Restart the server to reset it.
+
+### 6b. Use it
+
+In `app/dashboard/analytics/page.tsx`, read a second param `?flaky=1` and call
+`getFlakyAnalytics()` instead of `getAnalytics()` when it's set.
+
+### 6c. Extend `app/dashboard/analytics/error.tsx`
+
+1. `const [attempts, setAttempts] = useState(0)`
+2. Retry button: `onClick={() => { setAttempts((a) => a + 1); reset(); }}`
+3. When `attempts >= 3`, hide the button and show "Still failing. Try again later."
 4. Comment what `reset()` actually re-runs
-5. Click through until it recovers
 
-### What you need to know
+### Why the cap
 
-`reset()` re-renders the segment, which **re-runs the server render** — including the
-data fetch. That's why it can genuinely recover.
+`reset()` re-renders the segment, which **re-runs the server render** including the
+fetch — that's why it can recover at all. But if the backend is properly down it
+fails identically every time, and an infinite Retry that never works is worse than an
+honest "this is broken".
 
-But if the backend is properly down, retry will fail identically every time. That's
-why the attempt cap matters: an infinite Retry button that never works is worse than
-an honest "this is broken" message.
+### Test
 
-### Verify
-
-Retry eventually succeeds against the intermittent failure, and the cap stops it
-after 3.
+`/dashboard/analytics?flaky=1` → error → Retry → error → Retry → **succeeds on the
+third**. Restart the server, then click past 3 to see the giving-up state.
 
 ---
 
 ## Done when
 
-- Loading UI appears on slow routes
-- The skeleton causes **no layout shift**
-- A thrown error shows your boundary, not a crash
-- Missing products return a **real 404**
-- Analytics can break without killing the dashboard
-- Retry recovers from intermittent failure
-- You can explain the dev-vs-prod `error.message` difference
+- Loading UI appears on `/dashboard` and `/products`
+- The products skeleton causes **no layout shift**
+- `?fail=1` shows your boundary, not a crash
+- `/products/p-9999` returns a **real 404**
+- Analytics breaks without killing the dashboard
+- The layout throw escaped `dashboard/error.tsx` — you watched it happen
+- Retry recovers on the third attempt and caps at 3
+- `npm run build` passes
 
 ---
 
 ## Recall questions
 
-1. `loading.tsx` is sugar for something. What does Next.js actually wrap your page in,
-   and where?
+1. `loading.tsx` is sugar for something. What does Next wrap your page in, and where?
 2. Why is a shape-matched skeleton better than a spinner? Name the Core Web Vital.
 3. Why must `error.tsx` be a Client Component?
 4. What is `digest` for? Why isn't the real message sent to the browser in production?
