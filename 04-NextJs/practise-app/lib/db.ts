@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { cache } from "react";
 import path from "node:path";
 
 import type {
@@ -30,6 +31,19 @@ async function readJson<T>(filename: string): Promise<T> {
   return JSON.parse(raw) as T;
 }
 
+
+// A switch for breaking the data layer on purpose.
+// Needed by Phase 6 Problem 7 (handling failures) and all of Phase 7
+// (error.tsx, retry). Flip it, reload, watch what happens.
+export let shouldFail = false;
+export function setShouldFail(v: boolean) { shouldFail = v; }
+
+// Call this at the top of any read to make it throw when the switch is on.
+function failIfAsked(where: string): void {
+  if (shouldFail) {
+    throw new Error(`Simulated database failure in ${where}`);
+  }
+}
 // ---------------------------------------------------------------------------
 // Products
 // ---------------------------------------------------------------------------
@@ -43,6 +57,9 @@ const PRODUCT_PAGE_SIZE_MAX = 50;
 export async function getProducts(
   options: GetProductsOptions = {}
 ): Promise<ProductListResult> {
+  // 0. Break on demand, for the error-handling exercises.
+  failIfAsked("getProducts");
+
   // 1. Fake a slow database. Without this, loading.tsx and Suspense are invisible.
   await sleep(DELAYS.slow);
 
@@ -133,12 +150,14 @@ export async function getProducts(
 }
 
 
-export async function getProduct(id: string): Promise<Product | null> {
+export const getProduct = cache( async(id: string): Promise<Product | null> => {
+  console.log("DB HIT", id);
+  
   await sleep(DELAYS.fast);
 
   const products = await readJson<Product[]>("products.json");
   return products.find((p) => p.id === id) ?? null;
-}
+});
 
 
 // ---------------------------------------------------------------------------
@@ -177,6 +196,37 @@ export async function getPost(slug: string): Promise<Post | null> {
 
   const posts = await readJson<Post[]>("posts.json");
   return posts.find((p) => p.slug === slug) ?? null;
+}
+
+// A deliberately unreliable "recommendations service", for Phase 6 Problem 7.
+//
+// Failure is a per-call ARGUMENT here, not the global shouldFail switch.
+// That matters: shouldFail is module state on the server, so flipping it would
+// break every page at once and stay broken. Passing `fail` keeps the blast
+// radius to one request, which is what you want for an experiment.
+export async function getRecommendations(
+  options: { fail?: boolean } = {}
+): Promise<Product[]> {
+  await sleep(DELAYS.fast);
+
+  if (options.fail) {
+    throw new Error("Recommendation service unavailable");
+  }
+
+  const products = await readJson<Product[]>("products.json");
+  return products.filter((p) => p.tags.includes("bestseller")).slice(0, 3);
+}
+
+// Posts by one author. Needs a USER ID, which you only get by fetching the
+// user first — so this is a genuinely dependent fetch, not a fake one.
+// That dependency is the whole point of Phase 6, Problem 6.
+export async function getPostsByAuthor(authorId: string): Promise<Post[]> {
+  await sleep(DELAYS.fast);
+
+  const posts = await readJson<Post[]>("posts.json");
+  return posts
+    .filter((p) => p.authorId === authorId)
+    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
 }
 
 // ---------------------------------------------------------------------------

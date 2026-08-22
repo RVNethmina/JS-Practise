@@ -32,6 +32,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 /* ── EXPORT 3 — the page itself ───────────────────────────────────────────── */
+/* PHASE 6, PROBLEM 4 — where revalidate would go.
+
+   This page reads the database directly, so there is no fetch to attach
+   caching options to. Once it does use fetch, the option lands here:
+
+     const res = await fetch(url, { next: { revalidate: 3600 } });
+
+   Meaning: serve the cached copy, and after an hour refresh it in the
+   background. Right now the HTML is frozen at build time until you rebuild.
+
+   The db-direct equivalent is unstable_cache — Phase 11, Problem 3. */
 export default async function BlogPost({ params }: PageProps) {
     const { slug } = await params;
 

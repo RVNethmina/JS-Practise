@@ -230,21 +230,73 @@ The independent fetch doesn't add to the total time. You measured it.
 
 ## Problem 7 — Handle a failed request, two ways
 
-**Goal:** know both failure strategies and when each is right.
+**Goal:** the same failing call, handled two ways, so you can see the difference in
+blast radius.
 
-**Files:** `app/(shop)/products/page.tsx`, plus a lab route
+### What you're building
 
-### Steps
+A fake "recommendations service" that you can break on demand. Then two pages that
+call it:
 
-1. **Version A — let it throw.** Don't catch. Flip `shouldFail` and watch the whole
-   route go down. (The boundary that catches this arrives in Phase 7; for now just
-   confirm the throw propagates.)
-2. **Version B — catch locally.** Wrap the call in `try/catch`, and in the catch
-   render an inline "couldn't load products" message **with the rest of the page
-   intact**
-3. Comment when each is right
+- `/products` **catches** the failure → only the Recommended strip degrades
+- `/lab/failure` **doesn't catch** → the whole route dies
 
-### What you need to know
+### 1. Add to `lib/db.ts`
+
+```ts
+export async function getRecommendations(
+  options: { fail?: boolean } = {}
+): Promise<Product[]>
+```
+
+- `await sleep(DELAYS.fast)` first
+- If `options.fail` is true, `throw new Error("Recommendation service unavailable")`
+- Otherwise return 3 products tagged `"bestseller"`
+
+> **Why an argument and not the global `shouldFail`?** `shouldFail` is module state
+> on the server — flipping it breaks *every* page at once and stays broken until you
+> flip it back. A per-call argument keeps the failure to one request. Keep
+> `shouldFail` for Phase 7, where you *want* a route genuinely down.
+
+### 2. Version B — catch locally, in `app/(shop)/products/page.tsx`
+
+Add above the `return`:
+
+```ts
+let recommendations: Product[] = [];
+let recsFailed = false;
+
+try {
+  recommendations = await getRecommendations({
+    fail: single(query.failrecs) === "1",
+  });
+} catch {
+  recsFailed = true;
+}
+```
+
+Then a `<section>` after `<ProductFilter>`: heading "Recommended", and either the
+list or "Recommendations are unavailable right now" when `recsFailed`.
+
+### 3. Version A — let it throw, in `app/lab/failure/page.tsx` *(new file)*
+
+- Read `?fail=1` from `searchParams`
+- `await getProducts({ pageSize: 1 })` and show the total
+- `await getRecommendations({ fail })` with **no try/catch**
+- Render the list, plus links to `?fail=1` and back
+
+### 4. Comment when each is right
+
+### Test these exact URLs
+
+| URL | Expect |
+|---|---|
+| `/lab/failure` | 200 |
+| `/lab/failure?fail=1` | **500** — whole route gone |
+| `/products` | 200 |
+| `/products?failrecs=1` | **200** — catalogue, search and pagination still work, only the strip says "unavailable" |
+
+### The rule
 
 | | Version A — throw | Version B — catch |
 |---|---|---|
@@ -252,34 +304,65 @@ The independent fetch doesn't add to the total time. You measured it.
 | Right when | the data **is** the page | the data is one widget among many |
 | Example | product detail with no product | a "recommended items" sidebar |
 
-Rule of thumb: **if the page is meaningless without this data, throw. If the page is
-still useful, catch.**
+**If the page is meaningless without this data, throw. If the page is still useful,
+catch.**
 
-### Verify
-
-1. Version B keeps the page usable
-2. Version A takes the route down
+And: an empty `catch` that shows nothing isn't error handling, it's hiding. Either
+tell the user or log it somewhere you'll actually look.
 
 ---
 
 ## Bonus lab — the waterfall, side by side
 
-**Goal:** one page that makes the parallel-vs-sequential difference undeniable.
+**Goal:** one page showing sequential vs parallel timings next to each other.
 
 **File:** `app/lab/waterfall/page.tsx`
 
-### Steps
+### What you're building
 
-1. Two sections on one page
-2. Section A: three sequential `await`s
-3. Section B: the same three in `Promise.all`
-4. Record `Date.now()` before and after each, render the elapsed ms
-5. Reload a few times
+**Three separate `async` functions in this one file**, each timing itself and
+returning `{ ms, ... }`. The page calls all three and renders a table.
 
-### Verify
+Use `getPosts()` (300ms), `getUsers()` (300ms), `getStats()` (800ms).
 
-The numbers differ by roughly 2×–3×. **This is the interview answer** — you'll be
-able to describe it from having watched it.
+### 1. `runSequential()`
+
+Three `await`s on separate lines. Time it with `Date.now()` either side.
+Return `{ ms, counts: [posts.length, users.length, stats.totalProducts] }`.
+
+### 2. `runParallel()`
+
+Same three, one `Promise.all([...])`. Same return shape.
+
+### 3. `runBroken()`
+
+```ts
+await Promise.all([getPosts, getUsers, getStats]);   // note: NO ()
+```
+
+Return `{ ms, types: results.map((r) => typeof r) }`.
+
+### 4. The page
+
+Call all three, render a 3-row table: **Approach · Time · What came back**.
+
+### Expected numbers
+
+| Row | Time | What came back |
+|---|---|---|
+| A — sequential | ~1400ms | `10, 5, 20` |
+| B — Promise.all | ~800ms | `10, 5, 20` |
+| C — missing `()` | **~0ms** | `function, function, function` ⚠️ |
+
+**Row C is the point of including it.** It looks like the fastest result on the page,
+but those aren't promises — they're function objects. `Promise.all` resolves
+non-promise values instantly, so it finishes having fetched nothing.
+
+TypeScript won't save you: it only complains if you actually *use* the results. Render
+just the timings and it stays silent.
+
+A vs B is the mental model: **1400 ≈ the sum. 800 ≈ the slowest one.** Parallel isn't
+"faster on average" — it's bounded by your slowest fetch.
 
 ---
 
