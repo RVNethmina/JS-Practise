@@ -58,7 +58,7 @@ An empty array and a failed fetch are **different states** and need different UI
 
 **Goal:** write down the three `fetch` caching modes before you need them.
 
-**File:** `app/(shop)/products/page.tsx`
+**File:** `app/(shop)/products/(list)/page.tsx`
 
 ### Steps
 
@@ -151,7 +151,7 @@ You can state the before and after counts and explain the difference in one sent
 **Goal:** `/products?page=2` shows the second page, and Previous/Next work without
 losing other query params.
 
-**File:** `app/(shop)/products/page.tsx`
+**File:** `app/(shop)/products/(list)/page.tsx`
 
 ### Steps
 
@@ -258,7 +258,7 @@ export async function getRecommendations(
 > flip it back. A per-call argument keeps the failure to one request. Keep
 > `shouldFail` for Phase 7, where you *want* a route genuinely down.
 
-### 2. Version B — catch locally, in `app/(shop)/products/page.tsx`
+### 2. Version B — catch locally, in `app/(shop)/products/(list)/page.tsx`
 
 Add above the `return`:
 

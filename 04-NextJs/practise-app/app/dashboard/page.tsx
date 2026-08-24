@@ -1,14 +1,6 @@
 import { getStats, getRecentOrders, getNotifications } from "@/lib/db";
 import Filters from "./_components/Filters";
 
-/* This page stays a SERVER component.
-
-   It fetches everything, then hands the orders down to <Filters />, which is
-   the only interactive part and the only thing that ships to the browser.
-
-   That split is the whole point of Problem 7 — see the measurement steps at
-   the bottom of Filters.tsx. */
-
 export default async function DashboardPage() {
     // Phase 3, Problem 3: all three start at once, so this takes as long as
     // the slowest one (1200ms) instead of the sum (2600ms).
@@ -33,13 +25,6 @@ export default async function DashboardPage() {
                 </ul>
             </section>
 
-            {/* ── Orders + filters ─────────────────────────────────────────
-                The server fetched `orders`. Filters just receives them as a
-                prop and narrows them in the browser.
-
-                Plain data crosses the boundary fine: strings and numbers.
-                Note RecentOrder.placedAt is a STRING, not a Date — a Date
-                object cannot be passed from server to client. */}
             <Filters orders={orders} />
 
             {/* ── Notifications ────────────────────────────────────────── */}

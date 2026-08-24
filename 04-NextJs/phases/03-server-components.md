@@ -229,7 +229,7 @@ The loop, the `reduce`, and the records **all stay on the server**.
 network requests.
 
 **Files:**
-- `app/(shop)/products/page.tsx` — **server**
+- `app/(shop)/products/(list)/page.tsx` — **server**
 - `app/(shop)/products/_components/ProductFilter.tsx` — **client**
 
 ### Steps

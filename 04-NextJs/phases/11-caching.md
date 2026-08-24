@@ -60,7 +60,7 @@ around waiting.
 
 **Goal:** watch the same fetch hit the server once instead of every reload.
 
-**File:** `app/(shop)/products/page.tsx`
+**File:** `app/(shop)/products/(list)/page.tsx`
 
 ### Steps
 
@@ -131,7 +131,7 @@ The timestamp freezes, then jumps after the window. You can state which of the t
 
 **Goal:** creating a product updates **every** page that displays products.
 
-**Files:** `app/actions/products.ts`, `app/(shop)/products/page.tsx`
+**Files:** `app/actions/products.ts`, `app/(shop)/products/(list)/page.tsx`
 
 ### Steps
 

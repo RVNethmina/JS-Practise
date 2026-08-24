@@ -30,7 +30,7 @@ app/dashboard/loading.tsx               ← P1  new
 app/dashboard/error.tsx                 ← P3  new
 app/dashboard/analytics/page.tsx        ← P3  new, throws on demand
 app/dashboard/analytics/error.tsx       ← P5  new, extended in P6
-app/(shop)/products/loading.tsx         ← P2  new
+app/(shop)/products/(list)/loading.tsx  ← P2  new
 app/(shop)/products/[id]/not-found.tsx  ← P4  new
 lib/db.ts                               ← P3 and P6 additions
 app/globals.css                         ← P2 skeleton class
@@ -69,7 +69,35 @@ It covers `/dashboard/settings` too, since those pages have no `loading.tsx` of 
 
 **Goal:** a skeleton shaped like the real content, so nothing jumps when data arrives.
 
-**Files:** `app/(shop)/products/loading.tsx` *(new)*, `app/globals.css` *(edit)*
+**Files:** `app/(shop)/products/(list)/loading.tsx` *(new)*, `app/globals.css` *(edit)*
+
+> [!danger] Where this file goes matters, and it's not obvious
+> The natural place is `app/(shop)/products/loading.tsx`. **Don't.**
+>
+> `loading.tsx` covers its segment *and every child*, so that location also wraps
+> `/products/[id]` in a Suspense boundary. Once a response starts streaming, the
+> HTTP status is already sent — so `notFound()` in the detail page can no longer
+> return 404. It renders your not-found UI with a **200**, silently breaking
+> Problem 4.
+>
+> Fix: put the list page and its loading file in a `(list)` route group, so the
+> boundary can't reach `[id]`:
+>
+> ```
+> app/(shop)/products/
+> ├── (list)/
+> │   ├── page.tsx        → /products     (URL unchanged)
+> │   └── loading.tsx     → covers ONLY the list
+> └── [id]/
+>     ├── page.tsx        → /products/p-1
+>     └── not-found.tsx
+> ```
+>
+> Moving `page.tsx` down one level means its imports change from
+> `./_components/...` to `../_components/...`.
+>
+> This is also better UI: a six-row list skeleton is the wrong shape for a single
+> product page anyway.
 
 ### Build
 
@@ -261,22 +289,74 @@ In `app/dashboard/analytics/page.tsx`, read a second param `?flaky=1` and call
 
 ### 6c. Extend `app/dashboard/analytics/error.tsx`
 
-1. `const [attempts, setAttempts] = useState(0)`
-2. Retry button: `onClick={() => { setAttempts((a) => a + 1); reset(); }}`
-3. When `attempts >= 3`, hide the button and show "Still failing. Try again later."
-4. Comment what `reset()` actually re-runs
+Two things here are **not obvious**, and both were found by testing rather than
+reading:
+
+> [!warning] `reset()` alone does NOT re-fetch from the server
+> It re-renders the boundary from the payload the client already has — which still
+> contains the error. Click Retry twice and the server function runs **zero** extra
+> times. Prove it with a `console.log` in `getFlakyAnalytics`.
+>
+> You need **`router.refresh()`** to force a fresh server request.
+
+> [!warning] `useState` cannot hold the attempt count
+> `reset()` **remounts** the boundary, so `useState(0)` starts at 0 again every time
+> and the counter never climbs past 1. Use a **module-level variable**, which
+> survives the remount.
+
+```tsx
+"use client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
+let attemptCount = 0;   // module scope — survives the remount
+
+export default function AnalyticsError({ error, reset }: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  const router = useRouter();
+  const [attempts, setAttempts] = useState(attemptCount);
+
+  useEffect(() => { console.error(error); }, [error]);
+
+  function retry() {
+    attemptCount += 1;
+    setAttempts(attemptCount);
+    router.refresh();   // re-fetch on the server
+    reset();            // re-render the boundary
+  }
+
+  return (
+    <div>
+      <h2>Analytics is unavailable.</h2>
+      {error.digest && <p>Reference: {error.digest}</p>}
+      {attempts < 3
+        ? <button onClick={retry}>Try again ({attempts}/3)</button>
+        : <p>Still failing. Try again later.</p>}
+    </div>
+  );
+}
+```
+
+`attemptCount` only resets on a full page load, not on success. Fine for a lab.
 
 ### Why the cap
 
-`reset()` re-renders the segment, which **re-runs the server render** including the
-fetch — that's why it can recover at all. But if the backend is properly down it
-fails identically every time, and an infinite Retry that never works is worse than an
-honest "this is broken".
+Even with `router.refresh()`, a genuinely dead backend fails identically every time.
+An infinite Retry that never works is worse than an honest "this is broken".
 
 ### Test
 
-`/dashboard/analytics?flaky=1` → error → Retry → error → Retry → **succeeds on the
-third**. Restart the server, then click past 3 to see the giving-up state.
+`/dashboard/analytics?flaky=1` → error → Retry → error **and the counter reads
+(1/3)** → Retry → **succeeds**, showing 12043 / 2.4% / google.com.
+
+Two ways to tell it's wrong:
+
+- counter stuck at **(0/3)** → your count is in `useState`
+- **the digest never changes** between retries → you're missing `router.refresh()`
+
+Restart the server to reset `analyticsAttempts` before trying again.
 
 ---
 
@@ -302,8 +382,11 @@ third**. Restart the server, then click past 3 to see the giving-up state.
 5. Name three differences between `not-found.tsx` and `error.tsx`.
 6. An `error.tsx` doesn't catch errors thrown by the layout at its own level. Why not,
    and where must the boundary live?
-7. Does `reset()` re-run the server fetch or only re-render the client? What does that
-   imply for a genuinely broken backend?
+7. Does `reset()` re-run the server fetch, or only re-render the client? What must you
+   pair it with to actually re-fetch?
+8. Why can't the retry counter live in `useState`?
+9. `loading.tsx` on a parent segment changes what `notFound()` can do in a child
+   route. What changes, and why?
 
 ---
 

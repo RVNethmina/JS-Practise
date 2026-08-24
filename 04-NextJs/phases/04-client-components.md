@@ -101,7 +101,7 @@ right when the view should be shareable, bookmarkable, or readable by the server
 7. Build the new query with `new URLSearchParams(searchParams.toString())`, then
    `.set("q", value)` — or `.delete("q")` when empty
 8. Navigate with **`router.replace`**, passing `{ scroll: false }`
-9. In `products/page.tsx`, wrap `<SearchBox />` in **`<Suspense>`** with a fallback
+9. In `products/(list)/page.tsx`, wrap `<SearchBox />` in **`<Suspense>`** with a fallback
 
 ### What you need to know
 

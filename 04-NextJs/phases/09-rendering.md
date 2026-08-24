@@ -105,7 +105,7 @@ The route flipped to `ƒ`, and **you can point at the exact line** that caused i
 
 **Goal:** map the boundary precisely and prove what's in the bundle.
 
-**File:** `app/(shop)/products/page.tsx`
+**File:** `app/(shop)/products/(list)/page.tsx`
 
 ### Steps
 

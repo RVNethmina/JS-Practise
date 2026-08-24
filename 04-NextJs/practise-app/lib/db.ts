@@ -16,7 +16,7 @@ import type {
 
 const DELAYS = {
   fast: 300,
-  slow: 2000,
+  slow: 4000,
 } as const;
 
 function sleep(ms: number): Promise<void> {
@@ -415,4 +415,36 @@ export async function getSalesRecords(): Promise<SalesRecord[]> {
   }
 
   return records;
+}
+
+
+export type AnalyticsSummary = {
+  pageViews: number;
+  conversionRate: number;
+  topReferrer: string;
+};
+
+export async function getAnalytics( options: { fail?: boolean } = {} ): Promise<AnalyticsSummary> {
+
+  await sleep(DELAYS.fast);
+  if(options.fail) throw new Error("Analytics provider timed out")
+
+  return {
+    pageViews: 12,
+    conversionRate: 0.5,
+    topReferrer: "Me"
+  }
+}
+
+let analyticsAttempts = 0;
+
+export async function getFlakyAnalytics(): Promise<AnalyticsSummary> {
+ analyticsAttempts++;
+ await sleep(DELAYS.fast);
+
+ if (analyticsAttempts <= 2 ){
+  throw new Error(`Analytics timed out (attempt ${analyticsAttempts})`);
+ }
+
+ return {pageViews: 12043, conversionRate: 2.4, topReferrer: "google.com"};
 }
