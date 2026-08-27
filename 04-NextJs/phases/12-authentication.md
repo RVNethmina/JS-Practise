@@ -8,79 +8,175 @@
 - `NextJs-Vault/10-authentication/Protecting Routes.md`
 - `NextJs-Vault/10-authentication/Role-Based Access.md`
 
-## The one idea in this phase
+## The one idea
 
 Two words people use interchangeably and shouldn't:
 
 - **Authentication** — *who are you?* (login)
-- **Authorization** — *are you allowed to do this?* (roles, permissions)
+- **Authorization** — *are you allowed to do this?* (roles)
 
 And the rule that matters most:
 
 > **The check must live as close to the data as possible.**
+>
+> A layout check is convenience. A proxy check is an optimisation.
+> **The page or action that touches the data is the only real boundary.**
 
-A layout check is convenience. A middleware check is an optimisation. **The page or
-action that touches the data is the only real boundary.**
+## Where you can and can't touch cookies — get this right first
+
+Straight from the Next 16 docs:
+
+| Operation | Server Component | Server Action | Route Handler |
+|---|---|---|---|
+| **read** `.get()` | ✅ | ✅ | ✅ |
+| **write** `.set()` | ❌ | ✅ | ✅ |
+| **delete** `.delete()` | ❌ | ✅ | ✅ |
+
+> [!danger] You cannot set a cookie while rendering a page
+> *"HTTP does not allow setting cookies after streaming starts, so you must use `.set`
+> in a Server Function or Route Handler."*
+>
+> This is why login and logout are **Server Actions**, not something a page does. If
+> you try it in a page you'll get a runtime error, and the reason isn't obvious.
+
+Also: `cookies()` is **async** in Next 15+ — `await cookies()`, always.
+
+## Your seed credentials
+
+`data/users.json`, with passwords in plain text:
+
+| Email | Password | Role |
+|---|---|---|
+| `admin@example.com` | `admin123` | admin |
+| `editor@example.com` | `editor123` | editor |
+| `viewer@example.com` | `viewer123` | viewer |
+| `kavindi@example.com` | `kavindi123` | editor |
+| `tharindu@example.com` | `tharindu123` | viewer |
+
+> [!warning] The field is called `passwordHash` and contains no hash
+> That naming is a deliberate landmine. In production a plain-text password column is
+> a serious incident. See the scope note below.
 
 ## Scope honesty
 
-Passwords in `data/users.json` are plain strings, and your session token can be a
-signed JSON blob rather than a real JWT.
+Passwords are plain strings and your session token will be a signed JSON blob rather
+than a real JWT. **That's acceptable for a local training app with no real secrets.**
 
-**That is acceptable for a local training app with no real secrets.** In production
-both would be unacceptable — password hashing (argon2/bcrypt) and a vetted session
-library are non-negotiable. The point here is the **Next.js mechanics**, not
-implementing crypto.
+In production both are unacceptable — password hashing (argon2/bcrypt) and a vetted
+session library are non-negotiable. **The point here is the Next.js mechanics**, not
+implementing crypto. Don't carry this code anywhere real.
 
-## Build this first
-
-`lib/session.ts` with three things you'll use in every problem:
+## What you'll have built by the end
 
 ```
-getSession(): Promise<Session | null>       null is a normal outcome
-requireSession(): Promise<Session>          redirects instead of returning null
-requireRole(role): Promise<Session>         throws/redirects on wrong role
+lib/session.ts                       <- P0  new, the core of the phase
+app/actions/auth.ts                  <- P1, P2  rewrite Phase 10's version
+app/(auth)/login/page.tsx            <- P1  edit
+app/dashboard/page.tsx               <- P3  add requireSession
+app/admin/layout.tsx                 <- P4  delete the hardcoded role
+app/admin/page.tsx                   <- P4  role check
+app/forbidden/page.tsx               <- P4  new
+app/_components/Nav.tsx              <- P5  role-aware links
+app/(marketing)/page.tsx             <- P6  optional session
+app/api/protected/route.ts           <- P7  new
+app/api/products/[id]/route.ts       <- P7  secure the mutations
 ```
 
-Type `Session.role` as `Role` from `lib/types.ts` — the literal union, **never
-`string`**.
+---
+
+## Problem 0 — `lib/session.ts`, the spine of the phase
+
+Every other problem imports from here. Build it first.
+
+### The token
+
+Keep it simple and honest: base64 of `{ userId, role }` plus a signature.
+
+```ts
+import { createHmac } from "node:crypto";
+
+const SECRET = process.env.SESSION_SECRET ?? "dev-only-not-a-real-secret";
+
+export type Session = {
+  userId: string;
+  role: Role;          // the literal union from lib/types.ts — never string
+};
+
+export function signSession(session: Session): string
+export function verifySession(token: string): Session | null
+```
+
+- `signSession` — JSON → base64 → append `.` + HMAC-SHA256 of the base64 part
+- `verifySession` — split on `.`, recompute the HMAC, **compare before parsing**,
+  return `null` on any mismatch
+
+### The three readers
+
+```ts
+export async function getSession(): Promise<Session | null>
+export async function requireSession(): Promise<Session>
+export async function requireRole(role: Role): Promise<Session>
+```
+
+- `getSession` — read the `session` cookie, `verifySession` it, return `null` if
+  absent or invalid. **Null is a normal outcome.**
+- `requireSession` — calls `getSession`, `redirect("/login")` when null
+- `requireRole` — calls `requireSession`, then `redirect("/forbidden")` on wrong role
+
+### And a type guard
+
+```ts
+export function isSession(value: unknown): value is Session
+```
+
+Validate **every field**. The decoded token came from outside your program and could
+be forged.
+
+### Why three functions instead of one
+
+The **return types** do the work:
+
+| Function | Returns | Right for |
+|---|---|---|
+| `getSession` | `Session \| null` | public pages — logged out is normal |
+| `requireSession` | `Session` | protected pages — no null to handle |
+| `requireRole` | `Session` | admin pages |
+
+One nullable function would force pointless null checks on protected pages. Two
+encode the intent in the type.
 
 ---
 
 ## Problem 1 — Login flow
 
-**Goal:** a real session cookie replacing Phase 10's naive version.
+**Goal:** a real signed session replacing Phase 10's naive cookie.
 
-**Files:** `app/actions/auth.ts`, `app/(auth)/login/page.tsx`
+**Files:** `app/actions/auth.ts` *(rewrite)*, `app/(auth)/login/page.tsx` *(edit)*
 
-### Steps
+### Build
 
-1. Look up the user with `getUserByEmail`
-2. Compare the password
-3. Build a session payload — user id and role, **never the password**
-4. `await cookies()` then `.set()` with:
-   - `httpOnly: true`
-   - `secure: process.env.NODE_ENV === "production"`
-   - `sameSite: "lax"`
-   - an explicit `maxAge`
-5. On failure return **"Invalid email or password"** — never say which was wrong
-6. **Comment why** that wording matters
-7. Redirect on success
+1. `getUserByEmail(email)`, compare `user.passwordHash` to the submitted password
+2. Build `{ userId: user.id, role: user.role }`, `signSession` it
+3. `(await cookies()).set("session", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: 60 * 60 * 24, path: "/" })`
+4. On failure return **"Invalid email or password"** — never say which was wrong
+5. **Comment why** that wording matters
+6. Support `?callbackUrl=` — redirect there on success, defaulting to `/dashboard`
+   *(Phase 13 hardens the validation on this)*
 
-### What you need to know
+### Why the vague error message
 
-**Why the vague error message.** "No user with that email" is a **user enumeration**
-vulnerability. An attacker scripts a few thousand addresses, keeps the ones that come
-back "wrong password", and now has a confirmed list of real accounts to attack. Same
-message for both cases gives them nothing.
+"No user with that email" is a **user enumeration** vulnerability. An attacker scripts
+a few thousand addresses, keeps the ones that come back "wrong password", and now has
+a confirmed list of real accounts. Same message for both cases gives them nothing.
 
-`secure: true` in development would break login entirely — `localhost` is HTTP. Hence
-the environment check.
+### Test
 
-### Verify
+Log in as `admin@example.com` / `admin123`. The cookie appears in devtools →
+Application → Cookies, and **`document.cookie` does not show it**.
 
-The cookie is set, **unreadable from `document.cookie`**, and carries enough to
-identify the user and their role.
+Then paste the cookie value into a decoder — you can read the payload (it's base64,
+not encryption) but you **cannot forge one**, because you don't have the secret.
+Change one character and reload: `verifySession` returns null and you're logged out.
 
 ---
 
@@ -88,33 +184,33 @@ identify the user and their role.
 
 **Goal:** logging out actually ends the session, and Back doesn't restore it.
 
-**File:** `app/actions/auth.ts`
+**File:** `app/actions/auth.ts` *(edit)*
 
-### Steps
+### Build
 
-1. `await cookies()` then `.delete()` the session cookie
-2. **Invalidate server-side too**, not just the cookie
-3. Redirect to `/login`
-4. Use a **`<form>` with a Server Action** — not a `<Link>`
-5. **Comment why a GET link would be wrong**
-6. Log out, then press Back
+1. `(await cookies()).delete("session")`
+2. `redirect("/login")`
+3. Use a **`<form>` with a Server Action** — not a `<Link>`
+4. **Comment why a GET link would be wrong**
+5. Log out, then press Back
 
-### What you need to know
+### Why logout must be POST
 
-**Why logout must be POST, not a GET link.** GET requests are supposed to be *safe* —
-no side effects. Anything can trigger one:
+GET requests are supposed to be **safe** — no side effects. Anything can trigger one:
 
-- a `<img src="/logout">` on any site logs your users out
+- `<img src="https://yourapp.com/logout">` on any website logs your users out
 - browsers and link prefetchers fetch GET URLs speculatively
 
 That's **CSRF**, and it's why every state-changing operation is POST.
 
-**Why deleting the cookie isn't enough:** if someone copied the cookie value, deleting
-their browser's copy doesn't stop them replaying it. Real invalidation is server-side.
+> [!info] Real invalidation needs server state
+> Deleting the cookie removes the browser's copy. If someone already copied the token,
+> it stays valid until `maxAge` expires — you'd need a server-side revocation list to
+> stop that. Note it; don't build it.
 
-### Verify
+### Test
 
-After logout, protected pages redirect. **The Back button does not restore access.**
+After logout, protected pages redirect. **The Back button doesn't restore access.**
 
 ---
 
@@ -122,49 +218,52 @@ After logout, protected pages redirect. **The Back button does not restore acces
 
 **Goal:** the check runs in the **page**, not just the layout.
 
-**File:** `app/dashboard/page.tsx`
+**File:** `app/dashboard/page.tsx` *(edit)*
 
-### Steps
+### Build
 
-1. Call `requireSession()` as the **first thing** in the component
-2. It redirects to `/login` when there's no valid session
-3. **Only after that**, fetch any data
-4. Log out and hit `/dashboard`
-5. Revisit `app/dashboard/layout.tsx` from Phase 2 — keep the layout check as a UX
-   convenience, but understand it is **not the boundary**
+1. `const session = await requireSession();` as the **first line** of the component
+2. **Only then** fetch data
+3. Replace the `cookies()` call you added in Phase 9 Problem 2 with this
+4. Log out, hit `/dashboard`
+5. Revisit `app/dashboard/layout.tsx` — keep any layout check as UX, but know it's
+   **not** the boundary
 
-### What you need to know
+### Why the order matters
 
-**Why the layout is not enough.** Layouts don't re-run on every navigation — that's
-the whole point of Phase 2 Problem 1. A layout check can be skipped by client-side
-navigation in ways a page check cannot.
+**Check first, fetch second.** Fetching before checking means you did the database work
+for a request you were about to reject — and if anything leaks through a log or an
+error message, you leaked data you should never have read.
 
-**The order in steps 1–3 matters.** Check first, fetch second. Fetching before
-checking means you did the database work for a request you were about to reject — and
-if anything leaks through an error message or a log, you leaked data you never should
-have read.
+### Why a layout isn't enough
 
-### Verify
+Layouts **don't re-run on navigation** — that's the whole point of Phase 2 Problem 1.
+A layout check can be skipped by client-side navigation in ways a page check cannot.
 
-Hitting `/dashboard` logged out redirects **before any data is fetched**.
+### Test
+
+Logged out, `/dashboard` redirects to `/login` **before any data is fetched** — put a
+log in `getStats` and confirm it doesn't fire.
 
 ---
 
-## Problem 4 — Admin-only page, with 401 vs 403
+## Problem 4 — Admin only, with 401 vs 403
 
 **Goal:** a logged-in viewer gets "forbidden", not a login redirect.
 
-**File:** `app/admin/page.tsx`
+**Files:** `app/admin/layout.tsx` *(edit)*, `app/admin/page.tsx` *(edit)*,
+`app/forbidden/page.tsx` *(new)*
 
-### Steps
+### Build
 
-1. Delete Phase 2's hardcoded `const role: Role = "viewer"`
-2. Read the role from the **verified session**
-3. **No session** → redirect to `/login` (that's 401 territory)
-4. **Session, wrong role** → render a forbidden page (403)
-5. Log in as a viewer and hit `/admin`
+1. **Delete** `const role: Role = "viewer";` from `app/admin/layout.tsx` — the
+   hardcoded gate that's been blocking you since Phase 10
+2. In `app/admin/page.tsx`: `const session = await requireRole("admin");`
+3. Create `app/forbidden/page.tsx` — a plain page saying the account lacks permission,
+   with a link home
+4. Log in as `viewer@example.com` and hit `/admin`
 
-### What you need to know
+### The distinction
 
 | | Meaning | Correct response |
 |---|---|---|
@@ -174,41 +273,43 @@ Hitting `/dashboard` logged out redirects **before any data is fetched**.
 Sending a logged-in viewer to the login page is a real UX bug: they log in again, land
 back on `/admin`, get bounced again, and conclude the app is broken.
 
-**Read the role from the verified session, never from anything the client sent.** A
-client-supplied role is just a request, not a fact.
+**Read the role from the verified session, never from anything the client sent.**
 
-### Verify
+### Test
 
-Logged in as a viewer, `/admin` shows **"forbidden"**, not the login page.
+| Logged in as | `/admin` shows |
+|---|---|
+| nobody | the login page |
+| `viewer@example.com` | **forbidden** |
+| `admin@example.com` | the admin page |
 
 ---
 
 ## Problem 5 — Role-based navigation
 
-**Goal:** hidden UI is cosmetic — prove the route still rejects you.
+**Goal:** prove that hiding UI is cosmetic.
 
-**File:** `app/_components/Nav.tsx`
+**File:** `app/_components/Nav.tsx` *(edit)*
 
-### Steps
+### Build
 
-1. Get the session on the **server**
-2. Pass **only the role** to the client component — never the whole session object
-3. Conditionally render admin links
+1. Get the session on the **server** (in the layout that renders `Nav`)
+2. Pass **only the role** down as a prop — never the whole session
+3. Conditionally render the Admin link
 4. **Then attack your own app:** log in as a viewer, open devtools, unhide the admin
-   link, and click it
+   link, click it
 
-### What you need to know
+### Why
 
-**Hiding a link is not access control.** It's UX — it stops people from clicking
-things that would fail. Anyone can unhide it in two seconds.
+**Hiding a link is not access control.** It's UX — it stops people clicking things
+that would fail. Anyone can unhide it in two seconds.
 
-**If step 4 gets you into `/admin`, your app is broken and Problem 4 isn't done.** The
-check in the page is what protects you; the hidden link just tidies the interface.
+> [!danger] If step 4 gets you into `/admin`, your app is broken and Problem 4 isn't done.
 
 Never send the whole session to the client. It contains more than the browser needs,
 and everything you send is readable.
 
-### Verify
+### Test
 
 Unhiding the link and clicking it **still gets rejected**.
 
@@ -218,105 +319,112 @@ Unhiding the link and clicking it **still gets rejected**.
 
 **Goal:** render differently for logged-in and anonymous visitors, redirecting neither.
 
-**File:** `app/(marketing)/page.tsx`
+**File:** `app/(marketing)/page.tsx` *(edit)*
 
-### Steps
+### Build
 
 1. Use `getSession()` — the one that **returns null** rather than redirecting
-2. Render a personalised greeting or a sign-in prompt
-3. Run `npm run build` and compare the marker against your Phase 9 baseline
+2. Render a greeting or a sign-in prompt
+3. `npm run build` and compare the marker against your Phase 9 baseline
 4. **Comment what that costs**
-5. **Then improve it:** move the personalised part into its own component inside
+5. **Then improve it:** move the personalised bit into its own component inside
    `<Suspense>` and see whether the rest can still prerender
 
-### What you need to know
+### Why this problem exists
 
-**This is why there are two session functions.** A protected page wants
-`requireSession()` — absence is an error. A public page wants `getSession()` —
+It's where the two session functions earn their separate existence. A protected page
+wants `requireSession()` — absence is an error. A public page wants `getSession()` —
 absence is completely normal.
 
-The return types encode that. `Promise<Session | null>` forces you to handle the null;
-`Promise<Session>` doesn't, because it never returns one.
-
 **Step 3 is the cost:** reading `cookies()` makes this route dynamic. Your homepage
-just stopped being a static file. Step 5 is the mitigation — the same technique as
-Phase 9 Problem 6.
+just stopped being a static file. Step 5 is the mitigation — same technique as Phase 9
+Problem 6.
 
-### Verify
+### Test
 
-Both states render. `npm run build` marks the route dynamic — **confirm the marker
-changed** from your Phase 9 baseline.
+Both states render. `/` flipped from `○` to `ƒ` — confirm against the Phase 9 table.
 
 ---
 
 ## Problem 7 — Protected Route Handler
 
-**Goal:** API endpoints return **status codes**, not redirects.
+**Goal:** APIs return **status codes**, not redirects.
 
-**File:** `app/api/protected/route.ts`
+**Files:** `app/api/protected/route.ts` *(new)*,
+`app/api/products/[id]/route.ts` *(edit)*
 
-### Steps
+### Build
 
-1. Read and verify the session from `request.cookies`
-2. **No session** → 401, with a `WWW-Authenticate` header
-3. **Wrong role** → 403
-4. Use the same JSON error shape as Phase 8
-5. **Never leak internal error details** in the response
-6. **Then go back and secure Phase 8's mutating endpoints** — they're currently wide
-   open to anyone
+1. In the new handler, read the cookie from `request.cookies.get("session")` —
+   **synchronous** on `NextRequest`, unlike `await cookies()`
+2. `verifySession` it
+3. No valid session → **401** with a `WWW-Authenticate: Bearer` header
+4. Valid but wrong role → **403**
+5. Use the same `apiError` shape from Phase 8's `lib/api.ts`
+6. **Never leak internal error details**
+7. **Then go back and secure Phase 8's mutating endpoints** — `POST`, `PUT`, `PATCH`,
+   `DELETE` are all currently wide open
 
-### What you need to know
+### Why redirecting an API client is wrong
 
-**Why redirecting an API client is wrong.** A `fetch()` follows redirects silently. Your
-mobile app asks for JSON, gets a 200 with an HTML login page, and crashes on
-`res.json()` with a confusing parse error. The real problem — "you're not
-authenticated" — is nowhere in that message.
+A `fetch()` follows redirects silently. Your mobile app asks for JSON, gets a 200 with
+an HTML login page, and crashes on `res.json()` with a confusing parse error. The real
+problem — "you're not authenticated" — appears nowhere in that message.
 
-Pages redirect. **APIs return status codes.** Same session logic, different response.
+**Pages redirect. APIs return status codes.** Same session logic, different response.
 
-**Step 6 is not optional.** Phase 8 built `POST`, `PUT`, `PATCH`, and `DELETE`
-endpoints with no auth at all. Right now anyone on the internet can delete your
-products. Fix that now.
+### Step 7 is not optional
 
-### Verify
+Phase 8 built endpoints that create, update and delete with no auth at all. Right now
+anyone on the internet can empty your product catalogue.
+
+### Test
 
 ```bash
 curl -i http://localhost:3000/api/protected
 ```
 
-Returns **401**. With a viewer's cookie, **403**.
+**401.** With a viewer's cookie, **403**. And:
+
+```bash
+curl -i -X DELETE http://localhost:3000/api/products/p-1
+```
+
+**401**, not 204.
 
 ---
 
 ## Done when
 
-- Login and logout work end to end against seeded users
-- Protected pages redirect when logged out
+- Login and logout work end to end against the seeded users
+- A tampered cookie logs you out — you tried it
+- Protected pages redirect **before fetching**
 - A viewer gets **403** on `/admin`, not a login redirect
 - Unhiding a hidden admin link in devtools achieves **nothing**
 - API endpoints return 401/403 rather than redirecting
-- **Every mutating Server Action and endpoint checks authorization**
+- **Every mutating endpoint checks authorization**
+- `npm run build` passes
 
 ---
 
 ## Recall questions
 
 1. Define authentication vs authorization in one sentence each.
-2. What does `httpOnly` protect against? What does `sameSite`? They defend different
-   attacks — name both.
-3. Why is "invalid email or password" better than "no user with that email"? Name the
-   attack.
-4. Why must logout be a POST rather than a GET link?
-5. Middleware, layout, and page can all check auth. Which is authoritative, and why is
-   middleware alone insufficient?
-6. A user edits the DOM to reveal a hidden admin link and clicks it. What stops them?
-7. Why is redirecting an API client on auth failure wrong?
-8. What is **IDOR**, and which of your endpoints is vulnerable if you check role but
+2. Where can you `.set()` a cookie, and where can't you? Why the restriction?
+3. What does `httpOnly` protect against? What does `sameSite`? Different attacks —
+   name both.
+4. Why is "invalid email or password" better than "no user with that email"?
+5. Why must logout be a POST rather than a GET link?
+6. Proxy, layout, and page can all check auth. Which is authoritative, and why is the
+   proxy alone insufficient?
+7. A user edits the DOM to reveal a hidden admin link and clicks it. What stops them?
+8. Why is redirecting an API client on auth failure wrong?
+9. What is **IDOR**, and which of your endpoints is vulnerable if you check role but
    not ownership?
 
 ---
 
 ## Not yet
 
-Middleware (Phase 13) adds a fast pre-filter **on top of** this. The checks you wrote
+Phase 13 adds the proxy as a **fast pre-filter** on top of this. The checks you wrote
 here remain the actual boundary.

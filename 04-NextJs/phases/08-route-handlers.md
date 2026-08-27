@@ -8,35 +8,33 @@
 - `NextJs-Vault/08-api-route-handlers/Request and Response.md`
 - `NextJs-Vault/08-api-route-handlers/Dynamic API Routes.md`
 
-## The one idea in this phase
+## The one idea
 
-A **Route Handler** is a file named `route.ts` that responds to HTTP requests instead
-of rendering HTML. You export functions **named after HTTP methods**:
+A **Route Handler** is a file named `route.ts` that returns data instead of HTML. You
+export functions **named after HTTP methods**:
 
-```
+```ts
 export async function GET(request: Request) { ... }
 export async function POST(request: Request) { ... }
 ```
 
-**The function name is the routing.** `GET` handles GET, `POST` handles POST. There's
-no method-checking `if` statement.
+**The function name IS the routing.** No method-checking `if` statement anywhere.
 
-`route.ts` and `page.tsx` **cannot coexist in the same folder** — both would claim the
-same URL.
+> [!warning] `route.ts` and `page.tsx` cannot live in the same folder
+> Both would claim the same URL. Next fails the build.
 
-## Why build this at all?
+## Why build an API at all?
 
-**For a hypothetical mobile client.** That's the legitimate reason for an API.
+**For a hypothetical mobile client.** That's the legitimate reason.
 
 Your pages keep reading `db` **directly** — building an HTTP endpoint to feed your own
-server-rendered pages is a pointless network round trip.
-
-Phase 11 will point some pages at these endpoints *deliberately*, to make caching
-observable. That's a teaching device, not architecture advice.
+server-rendered pages is a pointless network round trip. Phase 11 will deliberately
+point some pages at these endpoints to make caching visible; that's a teaching device,
+not architecture advice.
 
 ## Test with `curl`, not the browser
 
-The browser can only send GET. You'll miss most of your own bugs.
+The browser only sends GET. You'll miss most of your own bugs.
 
 ```bash
 curl -i http://localhost:3000/api/users
@@ -44,223 +42,342 @@ curl -i http://localhost:3000/api/users
 
 `-i` shows the status line and headers, which is most of what you're checking here.
 
+## What you'll have built by the end
+
+```
+lib/db.ts                        <- writeJson + 3 write functions (below)
+lib/api.ts                       <- shared response helpers (below)
+app/api/users/route.ts           <- P1 GET, P2 POST
+app/api/products/route.ts        <- P7 GET paginated
+app/api/products/[id]/route.ts   <- P3 GET, P4 PUT/PATCH, P5 DELETE
+app/api/search/route.ts          <- P6 GET
+app/api/[resource]/route.ts      <- P8 GET, whitelisted
+```
+
+---
+
+## Problem 0 — Setup you need before anything else
+
+**`lib/db.ts` is currently read-only.** There is no way to write to the JSON files, so
+POST, PUT, PATCH and DELETE are impossible until you add this.
+
+### 0a. A writer, mirroring `readJson`
+
+```ts
+import { readFile, writeFile } from "node:fs/promises";
+
+async function writeJson<T>(filename: string, data: T): Promise<void> {
+  await writeFile(
+    path.join(DATA_DIR, filename),
+    JSON.stringify(data, null, 2),
+    "utf-8"
+  );
+}
+```
+
+`null, 2` pretty-prints it, so you can open `data/products.json` and read the change.
+
+> [!info] Mutations now persist across restarts
+> That's deliberate — Phase 10 asks you to confirm `data/*.json` actually changed on
+> disk. If you corrupt the seed data while experimenting, `git checkout data/` puts it
+> back.
+
+### 0b. Three write functions
+
+```ts
+export async function createUser(
+  input: { username: string; name: string; email: string; role: Role }
+): Promise<PublicUser>
+
+export async function updateProduct(
+  id: string,
+  patch: Partial<Omit<Product, "id">>
+): Promise<Product | null>
+
+export async function deleteProduct(id: string): Promise<boolean>
+```
+
+- `createUser` — generate `id` as `u-{n+1}`, set `createdAt` to now, store a
+  placeholder `passwordHash`, return the user **without** it
+- `updateProduct` — merge `patch` over the existing product, save, return it.
+  `null` when the id doesn't exist
+- `deleteProduct` — `true` if something was removed, `false` if the id wasn't there
+
+### 0c. One error shape, used everywhere — `lib/api.ts` *(new file)*
+
+Pick the shape once so every endpoint answers the same way:
+
+```ts
+import { NextResponse } from "next/server";
+
+export type ApiError = { error: string };
+
+export function apiError(message: string, status: number) {
+  return NextResponse.json<ApiError>({ error: message }, { status });
+}
+```
+
+Phase 14 Problem 2 upgrades this into a discriminated union covering success too.
+
 ---
 
 ## Problem 1 — GET users
 
 **Goal:** `/api/users` returns JSON.
 
-**File:** `app/api/users/route.ts`
+**File:** `app/api/users/route.ts` *(new)*
 
-### Steps
+### Build
 
-1. Create `app/api/users/route.ts`
-2. Export a named `async function GET`
-3. `await getUsers()` from `@/lib/db`
-4. Return `Response.json(users)` — or `NextResponse.json(users)`
-5. Set the status explicitly rather than relying on the default
-6. Type the response body
+1. `export async function GET()`
+2. `await getUsers()`
+3. `return NextResponse.json(users, { status: 200 })`
 
-### Verify
+No params needed, so `GET` takes no arguments here.
+
+### Test
 
 ```bash
 curl -i http://localhost:3000/api/users
 ```
 
-Status 200, `content-type: application/json`, users in the body.
+Status 200, `content-type: application/json`, five users in the body.
 
 ---
 
 ## Problem 2 — POST user
 
-**Goal:** posting valid JSON creates a user; posting garbage returns 400, never 500.
+**Goal:** valid JSON creates a user; garbage returns 400, never 500.
 
-**File:** `app/api/users/route.ts` (same file — a second export)
+**File:** `app/api/users/route.ts` *(same file, second export)*
 
-### Steps
+### Build
 
 1. `export async function POST(request: Request)`
-2. **Wrap `await request.json()` in a `try/catch`** — it *throws* on malformed input
-3. In the catch, return 400 with a JSON error body
-4. Then **validate** the parsed object — check every field you need exists and has the
-   right type
-5. Invalid → 400 with which fields failed
-6. Valid → create it, return **201** with the created resource
+2. **Wrap `await request.json()` in try/catch** — it *throws* on malformed input.
+   In the catch, `return apiError("Invalid JSON body", 400)`
+3. Then validate the parsed object separately: `username`, `name`, `email` must be
+   non-empty strings; `role` must be one of `"admin" | "editor" | "viewer"`
+4. Invalid → `apiError("...", 400)` naming which field failed
+5. Valid → `await createUser(...)`, return it with **201**
 
-### What you need to know
+### Why two separate checks
 
-`request.json()` returns **`any`**. TypeScript will happily let you read
-`body.email.toLowerCase()` off it and crash at runtime.
+`request.json()` returns **`any`**. TypeScript will happily let you write
+`body.email.toLowerCase()` and crash at runtime.
 
-Two separate failures, both must be handled:
-- **Malformed JSON** → `request.json()` throws → catch → 400
-- **Valid JSON, wrong shape** → parses fine, fails your validation → 400
+Two distinct failures:
 
-**A 500 means your server broke. A 400 means the client sent something bad.** Sending
-500 for bad input is a bug — it triggers alerts and tells the client to retry
-something that will never work.
+| Input | What happens | Response |
+|---|---|---|
+| `not json` | `request.json()` **throws** | catch → 400 |
+| `{"foo":1}` | parses fine, fails your checks | 400 |
 
-### Verify
+**500 means your server broke. 400 means the client sent something bad.** Returning
+500 for bad input triggers alerts and tells the client to retry something that will
+never work.
+
+### Test
 
 ```bash
-curl -X POST http://localhost:3000/api/users -H "Content-Type: application/json" -d "not json"
+curl -i -X POST http://localhost:3000/api/users -H "Content-Type: application/json" -d "not json"
 ```
 
-Returns **400**, not 500. A valid body returns 201.
+Must be **400**, not 500.
+
+```bash
+curl -i -X POST http://localhost:3000/api/users -H "Content-Type: application/json" -d "{\"username\":\"zara\",\"name\":\"Zara\",\"email\":\"z@example.com\",\"role\":\"viewer\"}"
+```
+
+**201**, and `data/users.json` now has six users.
 
 ---
 
 ## Problem 3 — GET product by id
 
-**Goal:** `/api/products/1` returns the product; `/api/products/999` returns a JSON 404.
+**Goal:** `/api/products/p-1` returns the product; `/api/products/p-9999` returns a
+JSON 404.
 
-**File:** `app/api/products/[id]/route.ts`
+**File:** `app/api/products/[id]/route.ts` *(new)*
 
-### Steps
+### Build
 
-1. Dynamic segment folders work exactly as in pages
-2. Params arrive in the **second argument**:
-   ```
-   export async function GET(
-     request: Request,
-     { params }: { params: Promise<{ id: string }> }
-   )
-   ```
-3. `await params` — same async rule as pages
-4. `await getProduct(id)`
-5. Null → return 404 **with a JSON error body**, not `notFound()`
+Params arrive in the **second argument**, and they're a Promise, same as pages:
 
-### What you need to know
+```ts
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  ...
+}
+```
 
-`notFound()` renders an HTML page. **An API client wants JSON.** Return a proper JSON
-error shape with a 404 status instead.
+Null result → `apiError("Product not found", 404)`.
 
-Pick one error shape now and use it for every endpoint in this phase — something like
-`{ error: "Product not found" }`. Consistency is what makes an API usable.
+### Why not `notFound()`
 
-### Verify
+`notFound()` renders an **HTML page**. An API client asked for JSON and would get a
+login-page-shaped surprise, then crash on `res.json()`. Return a JSON body with a 404
+status instead.
 
-`/api/products/1` → 200 with the product. `/api/products/999` → 404 with a JSON body.
+### Test
 
----
+```bash
+curl -i http://localhost:3000/api/products/p-1
+curl -i http://localhost:3000/api/products/p-9999
+```
 
-## Problem 4 — Update product (PUT and PATCH)
-
-**Goal:** both methods work and differ correctly.
-
-**File:** `app/api/products/[id]/route.ts`
-
-### Steps
-
-1. Add `PUT` and `PATCH` exports to the same file
-2. **PUT replaces the whole resource** — require every field
-3. **PATCH updates some fields** — merge with what exists
-4. Validate both bodies
-5. **Comment the semantic difference**
-6. 200 with the updated resource; 404 if it doesn't exist
-7. Test PATCH with **one** field and confirm the others survive
-
-### What you need to know
-
-- **PUT is idempotent** — sending it five times leaves the same result as once.
-- **PATCH usually is too**, but not necessarily — `{ "increment": 1 }` isn't.
-
-Idempotency matters because clients retry on network failure. A non-idempotent
-endpoint can double-apply.
-
-### Verify
-
-PATCH with one field leaves the others intact. PUT with a partial body is rejected.
+200 with the product; 404 with `{"error":"Product not found"}`.
 
 ---
 
-## Problem 5 — Delete product
+## Problem 4 — PUT and PATCH
+
+**Goal:** both work, and differ correctly.
+
+**File:** `app/api/products/[id]/route.ts` *(same file)*
+
+### Build
+
+1. `export async function PUT(request, { params })` — **replace**: require `name`,
+   `description`, `price`, `categoryId`, `inStock`. Missing any → 400
+2. `export async function PATCH(request, { params })` — **merge**: accept any subset,
+   reject unknown keys
+3. Both: 404 when `updateProduct` returns null, 200 with the updated product otherwise
+4. Both: same JSON-parse try/catch as Problem 2
+5. Comment the semantic difference
+
+### What you need to know
+
+**PUT is idempotent** — sending it five times leaves the same result as once. **PATCH
+usually is too**, but not necessarily: `{ "increment": 1 }` isn't.
+
+This matters because clients retry on network failure. A non-idempotent endpoint can
+double-apply.
+
+### Test
+
+```bash
+curl -i -X PATCH http://localhost:3000/api/products/p-1 -H "Content-Type: application/json" -d "{\"price\":19900}"
+```
+
+200, and the product's **name and tags are unchanged** — only the price moved.
+
+```bash
+curl -i -X PUT http://localhost:3000/api/products/p-1 -H "Content-Type: application/json" -d "{\"price\":19900}"
+```
+
+**400** — PUT demands the whole resource.
+
+---
+
+## Problem 5 — DELETE
 
 **Goal:** a correct 204 with a genuinely empty body.
 
-**File:** `app/api/products/[id]/route.ts`
+**File:** `app/api/products/[id]/route.ts` *(same file)*
 
-### Steps
+### Build
 
-1. Add a `DELETE` export
-2. **First, try `Response.json(null, { status: 204 })`** and see what happens
-3. Then do it correctly: `new Response(null, { status: 204 })`
-4. 404 if it didn't exist
-5. **Decide and document:** is deleting an already-deleted resource an error?
+1. `export async function DELETE(request, { params })`
+2. **First, deliberately try** `return NextResponse.json(null, { status: 204 })` and
+   see what happens
+3. Then do it right: `return new Response(null, { status: 204 })`
+4. 404 when `deleteProduct` returns false
+5. **Decide and write down:** is deleting an already-deleted product an error?
 
-### What you need to know
+### Why step 2 fails
 
-**204 means "No Content" — the body must be empty.** `Response.json(null, ...)` tries
-to write `"null"` as a body, which contradicts the status. Step 2 is there so you see
-the failure rather than reading about it.
+**204 means "No Content" — the body must be empty.** `NextResponse.json(null, ...)`
+tries to write `"null"` as a body, contradicting the status. Seeing the failure beats
+reading about it.
 
-Step 5 has no single right answer. Returning 204 for an already-deleted resource makes
-DELETE idempotent, which is friendlier for retries. Returning 404 is more literal.
-**Pick one, write down why.** Interviewers ask this to see if you reason about API
-design.
+### On step 5
 
-### Verify
+No single right answer. Returning 204 for an already-gone resource makes DELETE
+idempotent, which is friendlier for retries. Returning 404 is more literal. **Pick one
+and write down why** — interviewers ask this to see if you reason about API design.
 
-The 204 response has a genuinely empty body — check with `curl -i`.
+### Test
+
+```bash
+curl -i -X DELETE http://localhost:3000/api/products/p-20
+```
+
+**204**, and nothing after the headers. Then `git checkout data/products.json` to
+restore it.
 
 ---
 
 ## Problem 6 — Search endpoint
 
-**Goal:** `/api/search?q=phone&limit=5` works; a missing `q` is a 400.
+**Goal:** `/api/search?q=desk&limit=5` works; a missing `q` is a 400.
 
-**File:** `app/api/search/route.ts`
+**File:** `app/api/search/route.ts` *(new)*
 
-### Steps
+### Build
 
-1. Read params from `request.nextUrl.searchParams` (needs `NextRequest`)
-2. **Require `q`** — missing → 400 with a message saying so
-3. Read optional `limit`, parse it, and **clamp it** to a maximum
-4. Pass into `getProducts({ search: q })`
-5. Test `?limit=999999`
+1. `export async function GET(request: NextRequest)` — import `NextRequest` from
+   `next/server`
+2. Read with `request.nextUrl.searchParams` — **synchronous** here, unlike a page's
+   `searchParams` Promise
+3. Missing or empty `q` → `apiError("Query parameter 'q' is required", 400)`
+4. Optional `limit`: parse, default 10, **clamp to 50**
+5. `await getProducts({ search: q, pageSize: limit })`
 
-### What you need to know
+### Why clamp
 
-`request.nextUrl.searchParams` is a `URLSearchParams` — `.get()` returns
-`string | null`. **Synchronous** here, unlike a page's `searchParams` Promise.
+Without it, `?limit=999999999` lets any anonymous caller ask your server to build an
+enormous response. That's a denial-of-service vector and it costs one line to prevent.
 
-**Why clamp `limit`:** without it, `?limit=999999999` lets any anonymous caller ask
-your server to build an enormous response. That's a denial-of-service vector, and it
-costs one line to prevent.
+Note `getProducts` already clamps `pageSize` to 50 internally — clamp here **as well**,
+so your endpoint's contract doesn't silently depend on someone else's ceiling.
 
-### Verify
+### Test
 
-`?q=phone&limit=5` works. No `q` → 400. `?limit=999999` returns the clamped count.
+```bash
+curl -i "http://localhost:3000/api/search?q=desk&limit=5"
+curl -i "http://localhost:3000/api/search"
+curl -s "http://localhost:3000/api/search?q=desk&limit=999999" | head -c 200
+```
+
+Works; 400; clamped to at most 50 items.
 
 ---
 
 ## Problem 7 — Paginated endpoint
 
-**Goal:** `/api/products?page=2&pageSize=10` returns the right slice plus metadata.
+**Goal:** `/api/products?page=2&pageSize=5` returns the right slice plus metadata.
 
-**File:** `app/api/products/route.ts`
+**File:** `app/api/products/route.ts` *(new)*
 
-### Steps
+### Build
 
-1. Read `page` and `pageSize` with defaults
-2. Parse both safely — reject or clamp `NaN`, zero, negatives
-3. **Clamp `pageSize`** and comment why
-4. Return `{ items, page, pageSize, total, totalPages }`
-5. Handle a page beyond the last — empty `items`, not an error
-6. Test `?page=2&pageSize=10`
+1. `export async function GET(request: NextRequest)`
+2. Read `page` and `pageSize`, defaulting to 1 and 10
+3. Parse safely — `NaN`, `0`, negatives all fall back to the default
+4. Clamp `pageSize` to 50
+5. Return the whole `ProductListResult`:
+   `{ items, page, pageSize, total, totalPages }`
+6. A page past the end returns **empty items with 200**, not an error
 
-### What you need to know
+### Why return the metadata
 
-`getProducts` already returns exactly this shape, so you can pass it through almost
-verbatim.
+`getProducts` already returns this shape, so pass it through almost verbatim. Sending
+the counts alongside the items means the client never needs a second request to build
+pagination controls.
 
-Returning the metadata alongside the items means the client never needs a second
-request to build pagination controls.
+### Test
 
-### Verify
+```bash
+curl -s "http://localhost:3000/api/products?page=2&pageSize=5"
+curl -s "http://localhost:3000/api/products?page=999&pageSize=5"
+```
 
-`?page=2&pageSize=10` returns the right slice with correct `total` and `totalPages`.
-A page past the end returns empty items with a 200.
+First: 5 items, `page: 2`, `total: 20`, `totalPages: 4`. Second: 200 with the last
+page (`getProducts` clamps) — note what it does and whether you agree.
 
 ---
 
@@ -268,34 +385,57 @@ A page past the end returns empty items with a 200.
 
 **Goal:** one handler serving several resource types — safely.
 
-**File:** `app/api/[resource]/route.ts`
+**File:** `app/api/[resource]/route.ts` *(new)*
 
-### Steps
+### Build
 
 1. `await params` for the resource name
-2. **Whitelist the allowed names** — an explicit array or a lookup object mapping
-   names to functions
-3. Anything not on the list → 404
-4. **Comment why a whitelist is mandatory, not a nicety**
-5. Test `/api/secrets`
+2. **A whitelist as a lookup object**, not an if-chain:
+   ```ts
+   const RESOURCES = {
+     categories: getCategories,
+     posts: getPosts,
+     docs: getDocs,
+   } as const;
+   ```
+3. Not a key of `RESOURCES` → `apiError("Unknown resource", 404)`
+4. Otherwise call the mapped function and return it
+5. Comment why a whitelist is mandatory, not a nicety
 
-### What you need to know
+> [!info] Why these three and not `users` / `products`
+> **A static segment beats a dynamic one.** `app/api/users/route.ts` wins over
+> `app/api/[resource]/route.ts` for `/api/users`.
+>
+> The bundled docs don't state this outright, so it was verified with two throwaway
+> handlers:
+>
+> ```
+> /api/probe  ->  {"handler":"STATIC /api/probe"}
+> /api/other  ->  {"handler":"DYNAMIC [res]","res":"other"}
+> ```
+>
+> Picking resources that **don't** have their own file makes it obvious this route is
+> doing the work. Then hit `/api/users` and watch the specific file still win.
+
+### Why a whitelist
 
 **This is the security problem of the phase.** Passing a user-controlled URL segment
 into a filename, a table name, or a dynamic import is how **path traversal** and
-**injection** happen. A request for `/api/../../etc/passwd` or `/api/admin_tokens` is
-not hypothetical — it's the first thing an attacker tries.
+**injection** happen. `/api/../../etc/passwd` is not hypothetical.
 
-**A denylist is always wrong** — you'll never think of every bad value. A whitelist
-is the only correct shape: enumerate what's allowed, reject everything else.
+**A denylist is always wrong** — you'll never think of every bad value. Enumerate what
+IS allowed and reject everything else.
 
-Note this route may **conflict** with `app/api/users/route.ts` from Problem 1. Static
-segments win over dynamic ones, so `/api/users` hits the specific file. Confirm that's
-actually what happens.
+### Test
 
-### Verify
+```bash
+curl -i http://localhost:3000/api/categories
+curl -i http://localhost:3000/api/secrets
+curl -s http://localhost:3000/api/users | head -c 80
+```
 
-`/api/users` and `/api/products` work. **`/api/secrets` 404s.**
+200; **404**; and `/api/users` still returns your Problem 1 handler's output, proving
+the static file wins.
 
 ---
 
@@ -303,31 +443,35 @@ actually what happens.
 
 - Every endpoint returns correct status codes
 - Malformed JSON produces **400, never 500**
-- 204 responses have genuinely empty bodies
+- The 204 has a genuinely empty body
 - `pageSize` and `limit` are clamped
-- The generic resource route rejects anything unlisted
-- **You've tested with `curl`**, not just the browser
+- `/api/secrets` 404s
+- **You tested with `curl`**, not just the browser
+- `data/users.json` visibly changed after your POST
+- `npm run build` passes
 
 ---
 
 ## Recall questions
 
-1. In Next 15+, are GET Route Handlers cached by default? This changed from 14 —
-   what's the current behaviour and how do you opt into the other?
+1. In Next 15+, are GET Route Handlers cached by default? This changed from 14 — what's
+   the current behaviour and how do you opt into the other?
 2. Why is validating `request.json()` non-negotiable? What type does it return?
 3. Write the full signature of a dynamic Route Handler from memory.
 4. PUT is idempotent. What does that mean, and is PATCH idempotent?
 5. How do you return a 204 correctly? What goes wrong with
-   `Response.json(null, { status: 204 })`?
-6. What's the security risk of passing a route param into a database table name or
-   file path? Name the vulnerability class.
+   `NextResponse.json(null, { status: 204 })`?
+6. What's the security risk of passing a route param into a table name or file path?
+   Name the vulnerability class.
 7. Offset vs cursor pagination — one concrete problem with offset on a
    frequently-changing dataset.
 8. When should you build a Route Handler at all, versus reading `db` directly?
+9. Why does `/api/users` hit the specific file rather than `[resource]`?
 
 ---
 
 ## Not yet
 
-**No auth on these endpoints** — they are wide open, including the mutating ones.
-Phase 12 adds 401/403. No caching (Phase 11).
+**No auth on any of these** — including the ones that write and delete. Right now
+anyone on the internet could empty your product catalogue. Phase 12 Problem 7 adds
+401/403 and comes back to secure these specific endpoints. No caching (Phase 11).

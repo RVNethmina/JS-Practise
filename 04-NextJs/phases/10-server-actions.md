@@ -8,12 +8,12 @@
 - `NextJs-Vault/09-server-actions/Forms and useActionState.md`
 - `NextJs-Vault/09-server-actions/Revalidation after Mutation.md`
 
-## The one idea in this phase
+## The one idea
 
-A **Server Action** is an async function that runs on the server but can be called
-directly from a form — **no API endpoint, no `fetch`, no `onSubmit`**.
+A **Server Action** is an async function that runs on the server but is called
+straight from a form — **no API endpoint, no `fetch`, no `onSubmit`**.
 
-```
+```ts
 "use server";
 
 export async function createUser(formData: FormData) {
@@ -21,29 +21,73 @@ export async function createUser(formData: FormData) {
 }
 ```
 
-Then in JSX:
-
-```
+```tsx
 <form action={createUser}>
 ```
 
-Note: `action=`, **not** `onSubmit=`.
+Note `action=`, **not** `onSubmit=`.
 
 **The killer feature: this works with JavaScript disabled.** Next generates a real
 HTML form pointing at a real endpoint. That's **progressive enhancement**, and it's
 why Problem 1 makes you turn JS off. Your Phase 4 contact form is completely dead
 without JS; this one isn't.
 
-## Add these to `lib/db.ts` first
+## Three hooks, three different packages — get these right
 
-You need write functions for the first time:
+| Hook | Import from | Used for |
+|---|---|---|
+| `useActionState` | **`react`** | form state + errors (P2) |
+| `useFormStatus` | **`react-dom`** | pending state (P4) |
+| `useOptimistic` | **`react`** | instant UI (P7) |
+
+> [!warning] React 18 tutorials will mislead you
+> `useActionState` was called **`useFormState`** and lived in `react-dom`. It moved
+> and was renamed in React 19. This app runs React 19.2.8, so use the names above.
+
+## Before you start — two blockers
+
+**1. Flip the admin gate.** `app/admin/layout.tsx` has:
+
+```ts
+const role: Role = "viewer";   // ← redirects you to /login
+```
+
+Every admin route in this phase is unreachable until you set it to `"admin"`. Phase 12
+replaces this with a real session.
+
+**2. You need `createProduct`.** Phase 8 Problem 0 added `writeJson`,
+`updateProduct` and `deleteProduct`. This phase needs one more:
+
+```ts
+export async function createProduct(
+  input: Omit<Product, "id" | "createdAt" | "variants">
+): Promise<Product>
+```
+
+Generate `id` as `p-{n+1}`, set `createdAt` to now, default `variants` to `[]`, append,
+`writeJson`, return the new product.
+
+> If you haven't done Phase 8 yet, do its Problem 0 first — nothing here works without
+> `writeJson`.
+
+## What you'll have built by the end
 
 ```
-createProduct(data)   updateProduct(id, data)   deleteProduct(id)
+lib/db.ts                                   <- createProduct
+lib/form.ts                                 <- shared FormState type
+app/actions/users.ts                        <- P1
+app/actions/profile.ts                      <- P2
+app/actions/products.ts                     <- P3, P4, P7
+app/actions/auth.ts                         <- P5
+app/actions/contact.ts                      <- P6
+app/admin/users/new/page.tsx                <- P1
+app/dashboard/settings/profile/page.tsx     <- P2  replace the stub
+app/admin/products/page.tsx                 <- P3  the list
+app/admin/products/new/page.tsx             <- P3  the form
+app/admin/products/_components/DeleteButton.tsx   <- P4  client
+app/admin/products/_components/SubmitButton.tsx   <- P4  client
+app/(auth)/login/page.tsx                   <- P5  replace the stub
 ```
-
-They should actually write to `data/products.json` — you want to see the file change
-on disk.
 
 ## On the login action (Problem 5)
 
@@ -53,256 +97,309 @@ thinking lives, so don't try to do it all now.
 
 ---
 
-## Problem 1 — Create user action
+## Problem 1 — Create user, working without JavaScript
 
 **Goal:** a form that submits **with JavaScript disabled**.
 
-**Files:** `app/actions/users.ts`, plus a form page
+**Files:** `app/actions/users.ts` *(new)*, `app/admin/users/new/page.tsx` *(new)*
 
-### Steps
+### 1a. The action
 
-1. Create `app/actions/users.ts` with `"use server"` as the **first line of the file**
-2. Export an `async function` taking `formData: FormData`
-3. Read fields with `formData.get("name")`
-4. **Narrow the result** — `formData.get()` returns `FormDataEntryValue | null`, not
-   `string`
-5. Validate, then write via `db`
-6. In the page, `<form action={createUser}>` with `name` attributes on every input
-7. **Open devtools → Settings → Debugger → Disable JavaScript. Submit again.**
+1. `"use server";` as the **first line of the file** — not inside the function
+2. `export async function createUserAction(formData: FormData)`
+3. Read fields with `formData.get("username")` etc.
+4. **Narrow, don't cast:**
+   ```ts
+   const raw = formData.get("username");
+   if (typeof raw !== "string" || !raw.trim()) { /* handle */ }
+   ```
+5. Call `createUser(...)` from Phase 8
+6. `redirect("/admin/users")` afterwards — create that list page too, or redirect to
+   `/users`
 
-### What you need to know
+### 1b. The form page
 
-- **The `name` attribute is how data reaches the action.** No `name`, no data. This is
-  plain HTML form behaviour.
-- The action **must** be `async`, even if it doesn't await anything.
-- **Do not `as string`** the result of `formData.get()`. Check it:
-  ```
-  const raw = formData.get("name");
-  if (typeof raw !== "string") return { error: "..." };
-  ```
-  `as string` lies to the compiler and crashes at runtime on a file upload field.
-
-### Verify
-
-**With JavaScript disabled, the form still works.** That's the whole point of the
-problem. Compare with your Phase 4 contact form, which does nothing at all.
-
----
-
-## Problem 2 — Update profile with validation errors
-
-**Goal:** invalid input shows per-field errors **and keeps what the user typed**.
-
-**Files:** `app/actions/profile.ts`, `app/dashboard/settings/profile/page.tsx`
-
-### Steps
-
-1. The action signature becomes `(prevState, formData)` — **two** arguments
-2. Return an object rather than throwing:
-   `{ errors?: Record<string, string[]>, values?: Record<string, string>, message?: string }`
-3. On the client, `useActionState` from **`react`**
-4. It returns `[state, formAction, isPending]` — put `formAction` in `action={}`
-5. Render `state.errors` beside the matching fields
-6. Use **`defaultValue`**, not `value`, on the inputs
+A Server Component. `<form action={createUserAction}>` with four inputs carrying
+`name="username"`, `name="name"`, `name="email"`, `name="role"` (a `<select>`).
 
 ### What you need to know
 
-- **`useActionState` was called `useFormState` in React 18** and lived in
-  `react-dom`. It's now `useActionState` from `react`. Older tutorials use the old
-  name and import path — that's the single most common breakage here.
-- `prevState` is whatever the action returned last time. First render gets the initial
-  value you passed.
-- **Why `defaultValue` and not `value`:** `value` makes the input controlled, which
-  requires JavaScript. `defaultValue` keeps it uncontrolled, so the form still works
-  with JS off — consistent with Problem 1.
+- **The `name` attribute is how data reaches the action.** No `name`, no data. That's
+  plain HTML form behaviour, not a React thing.
+- The action **must** be `async`, even if it never awaits.
+- **Never `as string`** on `formData.get()`. It returns `FormDataEntryValue | null`,
+  where `FormDataEntryValue` is `string | File`. A file upload field really does give
+  you a `File`, and `as string` just stops TypeScript warning you before it crashes.
 
-**Returning `values` is what preserves the typed input.** Without it, a validation
-failure wipes the form and the user retypes everything. That's the difference between
-a form people tolerate and one they abandon.
+### Test
 
-### Verify
+Fill it in and submit — a user appears in `data/users.json`.
 
-Invalid data shows field errors **and the inputs still contain what was typed**.
+Then **devtools → Ctrl+Shift+P → "Disable JavaScript"**, reload, and submit again.
+
+**It still works.** That's the whole problem. Compare with `/contact` from Phase 4,
+which does nothing at all with JS off.
 
 ---
 
-## Problem 3 — Create product, revalidate, redirect
+## Problem 2 — Validation errors that keep what you typed
+
+**Goal:** invalid input shows per-field errors **and preserves the input**.
+
+**Files:** `lib/form.ts` *(new)*, `app/actions/profile.ts` *(new)*,
+`app/dashboard/settings/profile/page.tsx` *(replace the stub)*
+
+### 2a. One shared shape — `lib/form.ts`
+
+```ts
+export type FormState = {
+  errors?: Record<string, string[]>;
+  values?: Record<string, string>;
+  message?: string;
+};
+
+export const emptyFormState: FormState = {};
+```
+
+### 2b. The action — note the **two** parameters
+
+```ts
+"use server";
+export async function updateProfileAction(
+  prevState: FormState,
+  formData: FormData
+): Promise<FormState>
+```
+
+- Validate `name` (non-empty) and `email` (contains `@`)
+- On failure **return** `{ errors, values }` — do **not** throw
+- On success return `{ message: "Saved" }`
+- There's no session yet, so hardcode which user you're editing: `"u-1"`
+
+### 2c. The page — a Client Component
+
+```tsx
+"use client";
+import { useActionState } from "react";
+
+const [state, formAction] = useActionState(updateProfileAction, emptyFormState);
+```
+
+- `<form action={formAction}>`
+- Render `state.errors?.name` beside each field
+- **`defaultValue={state.values?.name ?? ""}`** — not `value`
+
+### Why `defaultValue`, not `value`
+
+`value` makes the input **controlled**, which needs JavaScript. `defaultValue` keeps it
+uncontrolled, so the form still works with JS off — consistent with Problem 1.
+
+**Returning `values` is what preserves the input.** Without it, a validation failure
+wipes the form and the user retypes everything.
+
+### Why return instead of throw
+
+A throw triggers your `error.tsx` boundary, which is for *unexpected* failures. A bad
+email is entirely expected and belongs in the form's own UI.
+
+### Test
+
+Submit an invalid email. You see the field error **and the boxes still contain what you
+typed**.
+
+---
+
+## Problem 3 — Revalidate, then redirect (order matters)
 
 **Goal:** after creating, the list shows the new product immediately.
 
-**Files:** `app/actions/products.ts`, `app/admin/products/new/page.tsx`
+**Files:** `app/actions/products.ts` *(new)*, `app/admin/products/page.tsx` *(new)*,
+`app/admin/products/new/page.tsx` *(new)*
 
-### Steps
+### Build
 
-1. Write the create action with validation
-2. After a successful insert, call `revalidatePath("/admin/products")`
-3. **Then** call `redirect("/admin/products")`
-4. **Order matters — revalidate before redirect. Comment why.**
-5. **Then break it deliberately:** wrap the whole body, including the `redirect`, in a
-   `try/catch`. Run it. Watch it break.
+1. `app/admin/products/page.tsx` — a Server Component listing all products from
+   `getProducts({ pageSize: 50 })`, with a link to `new`
+2. `createProductAction(formData)` in `app/actions/products.ts`
+3. Validate, then `await createProduct(...)`
+4. `revalidatePath("/admin/products")` — import from `next/cache`
+5. **Then** `redirect("/admin/products")` — import from `next/navigation`
+6. **Comment why that order matters**
 
-### What you need to know
+### 3b. Then break it on purpose
 
-**Why revalidate first:** `redirect()` **throws** internally — that's how it stops
-execution. Anything after it never runs. Put `revalidatePath` second and it never
-fires, so the user lands on a page showing stale data.
+Wrap the whole body — **including the `redirect`** — in a `try/catch`. Run it. Watch
+the navigation silently not happen, and your catch block treat success as an error.
 
-**Why step 5 breaks:** since `redirect()` works by throwing, a `try/catch` around it
-**catches the redirect** and swallows it. The navigation silently never happens, and
-your catch block treats a successful redirect as an error.
+### Why the order matters
 
-The fix: keep `redirect()` **outside** the try/catch, after it.
+`redirect()` **throws** internally — that's how it stops execution. Put
+`revalidatePath` after it and it never runs, so the user lands on a page showing stale
+data.
+
+### Why the try/catch breaks it
+
+Since `redirect()` works by throwing, a `try/catch` around it **catches the redirect**
+and swallows it. The fix is to keep `redirect()` **outside** the try, after it.
 
 This trips up a lot of people. Seeing it once is worth more than reading it.
 
-### Verify
+### Test
 
-1. After creating, the list shows the new product immediately
-2. `data/products.json` actually changed on disk
-3. You saw the try/catch version break and know why
-
----
-
-## Problem 4 — Delete with a pending state
-
-**Goal:** the delete button says "Deleting…" while it's in flight.
-
-**Files:** `app/actions/products.ts`, a delete button component
-
-### Steps
-
-1. Bind the id: `deleteProduct.bind(null, product.id)` — or a hidden input
-2. Create a **separate** submit-button component with `"use client"`
-3. In it, call `useFormStatus` from `react-dom` and use `pending` to set the label and
-   disable
-4. Render that button **inside** the `<form>`
-5. Revalidate after deleting
-6. **First, try putting `useFormStatus` in the component that renders the `<form>`.**
-   It won't work.
-
-### What you need to know
-
-**Why step 6 fails — this is not a style rule.** `useFormStatus` reads from a React
-context that the `<form>` **provides**. A component can't read a context its own
-output creates — at the moment it runs, the form doesn't exist yet.
-
-The hook must be called by a component **rendered inside** the form, so it's below the
-provider in the tree.
-
-`.bind(null, id)` creates a new function with the first argument pre-filled. It's how
-you pass an id to an action without a hidden input.
-
-### Verify
-
-The button shows "Deleting…" and is disabled while in flight.
+Create a product → you land on the list → the new product is **already there**.
+`data/products.json` has 21 entries.
 
 ---
 
-## Problem 5 — Login form action (mechanism only)
+## Problem 4 — Delete, with a pending state
 
-**Goal:** logging in sets an httpOnly cookie that JavaScript cannot read.
+**Goal:** the delete button says "Deleting…" while in flight.
 
-**Files:** `app/actions/auth.ts`, `app/(auth)/login/page.tsx`
+**Files:** `app/actions/products.ts` *(edit)*,
+`app/admin/products/_components/DeleteButton.tsx` *(new)*,
+`app/admin/products/_components/SubmitButton.tsx` *(new)*
 
-### Steps
+### Build
 
-1. Read email and password from `FormData`, narrowing both
+1. `deleteProductAction(id: string)` — call `deleteProduct(id)`, then
+   `revalidatePath("/admin/products")`
+2. In the list, bind the id per row:
+   ```tsx
+   <form action={deleteProductAction.bind(null, product.id)}>
+     <SubmitButton label="Delete" pendingLabel="Deleting…" />
+   </form>
+   ```
+3. `SubmitButton.tsx` — `"use client"`, calls `useFormStatus()` from **`react-dom`**,
+   uses `pending` for the label and `disabled`
+4. **First, deliberately** put `useFormStatus()` in the component that renders the
+   `<form>` instead. It won't work.
+
+### Why step 4 fails — not a style rule
+
+`useFormStatus` reads a context that the `<form>` **provides**. A component can't read
+a context its own output creates — at the moment it runs, the form doesn't exist yet.
+
+The hook must be called by a component rendered **inside** the form, below the provider.
+
+### About `.bind(null, id)`
+
+Creates a new function with the first argument pre-filled. It's how you pass an id to
+an action without a hidden input. The `null` is the `this` value, which actions ignore.
+
+### Test
+
+Click Delete — the button reads "Deleting…" and is disabled, then the row disappears.
+
+---
+
+## Problem 5 — Login mechanism (cookie only)
+
+**Goal:** logging in sets an `httpOnly` cookie that JavaScript cannot read.
+
+**Files:** `app/actions/auth.ts` *(new)*, `app/(auth)/login/page.tsx` *(replace stub)*
+
+### Build
+
+1. Read `email` and `password` from `FormData`, narrowing both
 2. `await getUserByEmail(email)`
 3. Compare the password against the seeded user
-4. `const cookieStore = await cookies()` — **async in Next 15+**
-5. `cookieStore.set(...)` with `httpOnly: true`, `secure` in production,
-   `sameSite: "lax"`, an explicit `maxAge`
+   *(passwords are plain text in the seed — Phase 12 discusses why that's unacceptable
+   in production)*
+4. `const cookieStore = await cookies();` — **async in Next 15+**
+5. `cookieStore.set("session", user.id, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: 60 * 60 * 24 })`
 6. **Comment what each flag defends against**
-7. Bad credentials → **return** an error message, don't throw
-8. Success → `redirect()`
+7. Bad credentials → **return** an error message via `useActionState`, don't throw
+8. Success → `redirect("/dashboard")`
 9. In the browser console, type `document.cookie`
 
-### What you need to know
+### The flags
 
 | Flag | Defends against |
 |---|---|
-| `httpOnly` | **XSS** — injected JS cannot read the cookie |
+| `httpOnly` | **XSS** — injected JS can't read the cookie |
 | `secure` | **network sniffing** — HTTPS only |
 | `sameSite` | **CSRF** — not sent on cross-site requests |
 | `maxAge` | **indefinite sessions** — a stolen cookie expires |
 
-**Why return rather than throw:** a throw triggers your `error.tsx` boundary, which is
-for *unexpected* failures. A wrong password is an entirely expected outcome and
-belongs in the form's own UI.
+`secure: true` in development would break login, because `localhost` is HTTP. Hence the
+environment check.
 
-### Verify
+### Test
 
-The cookie is in devtools → Application → Cookies, and **`document.cookie` does not
-show it**. That's `httpOnly` working.
-
-**Phase 12 replaces the naive cookie value with a real verified session.**
+The cookie appears in devtools → Application → Cookies, and **`document.cookie` does
+not show it.** That's `httpOnly` working.
 
 ---
 
-## Problem 6 — Server-side validation that can't be bypassed
+## Problem 6 — Server validation you can't bypass
 
-**Goal:** bypassing the client validation still gets rejected.
+**Goal:** stripping the client validation still gets rejected.
 
-**File:** `app/actions/contact.ts`
+**File:** `app/actions/contact.ts` *(new)*, wired into the Phase 4 contact form
 
-### Steps
+### Build
 
-1. Validate on the **server**: required fields, email format, max lengths
-2. Return structured errors keyed by field name
+1. Server-side: required fields, email format, `message` max 1000 chars
+2. Return structured errors keyed by field, same `FormState` shape as Problem 2
 3. Preserve submitted values
-4. **Also** add matching client-side validation for fast feedback
-5. **Then bypass it:** in devtools, remove the `required` attributes and any maxlength,
+4. Keep the existing client-side validation for fast feedback
+5. **Then bypass it:** in devtools, delete the `required` attributes and any maxlength,
    and submit garbage
 
-### What you need to know
+### Why
 
-**Client-side validation is UX, not security.** It exists to give instant feedback
-without a round trip. It stops **nothing**.
+**Client-side validation is UX, not security.** It gives instant feedback without a
+round trip. It stops nothing.
 
-An attacker doesn't use your form at all — they `curl` the endpoint directly. Server
-Actions compile to real HTTP endpoints, so yours is reachable without ever loading
-your page.
+An attacker doesn't use your form at all — they `curl` the endpoint. Server Actions
+compile to real HTTP endpoints, so yours is reachable without ever loading your page.
 
 **Every validation must exist on the server. The client copy is a convenience.**
 
-### Verify
+### Test
 
-With the client validation stripped in devtools, the server **still rejects** the
-submission.
+With client validation stripped in devtools, the server **still rejects** it.
 
 ---
 
-## Problem 7 — Mutation with revalidation, two strategies
+## Problem 7 — Optimistic update
 
-**Goal:** compare path-based and tag-based invalidation, plus an optimistic update.
+**Goal:** the list changes instantly, then reconciles with the server.
 
-**File:** `app/actions/products.ts`
+**File:** `app/actions/products.ts` *(edit)*, plus a client list component
 
-### Steps
+### Build
 
-1. **Version A:** `revalidatePath("/admin/products")`
-2. **Version B:** `revalidateTag("products")` — write it, then note what's missing
-3. Add `useOptimistic` on the client so the list updates instantly
-4. Confirm it reconciles when the server responds
+1. **Version A:** confirm `revalidatePath("/admin/products")` from Problem 3 works
+2. **Version B:** write `revalidateTag("products", "max")` — then note what's missing
+3. Add `useOptimistic` from **`react`** so a deleted row vanishes before the server
+   confirms
+4. Confirm it rolls back if the action fails
 
-### What you need to know
+### Version B is deliberately incomplete
 
-**Version B is deliberately incomplete.** `revalidateTag` only works on fetches that
-were **tagged**, and you have no tagged fetches yet — that's Phase 11 Problem 3. Write
-the call, comment what it needs, move on.
+`revalidateTag` only affects fetches that were **tagged**, and you have no tagged
+fetches yet — that's Phase 11 Problem 3. Write the call, comment what it needs, move on.
 
-The difference:
-- **`revalidatePath`** — "this URL is stale". Simple, but you must know every affected
-  URL.
-- **`revalidateTag`** — "everything tagged `products` is stale". One call updates every
-  page displaying products, wherever it lives.
+| Call | Invalidates |
+|---|---|
+| `revalidatePath("/admin/products")` | that one URL — you must know every affected URL |
+| `revalidateTag("products", "max")` | everything tagged `products`, wherever it lives |
 
-`useOptimistic` shows the change **before** the server confirms. If the action fails,
+> [!warning] `revalidateTag` needs **two** arguments in Next 16
+> The single-argument form you'll see everywhere online is deprecated, and TypeScript
+> rejects it: `TS2554: Expected 2 arguments, but got 1`.
+>
+> Next 16 also adds **`updateTag(tag)`** — Server Actions only — which expires
+> immediately instead of serving stale. After a user's own save, that's usually the
+> one you want. Phase 11 Problem 3 measures the difference.
+
+`useOptimistic` shows the change before the server confirms. If the action throws,
 React rolls it back automatically.
 
-### Verify
+### Test
 
-The list updates instantly, then reconciles with the server result.
+Delete a row — it disappears **instantly**, before the 300ms round trip finishes.
 
 ---
 
@@ -310,10 +407,11 @@ The list updates instantly, then reconciles with the server result.
 
 - A form submits **with JavaScript disabled**
 - Validation errors return **without losing typed input**
-- The pending state works via `useFormStatus` in a child component
+- The pending state works via `useFormStatus` in a **child** component
 - You've seen `redirect()` break inside a `try/catch`
-- Server-side validation rejects a client-bypassed submission
-- **`data/*.json` actually changes on disk** after a mutation
+- Server validation rejects a client-bypassed submission
+- **`data/*.json` visibly changed on disk** after your mutations
+- `npm run build` passes
 
 ---
 
@@ -325,15 +423,15 @@ The list updates instantly, then reconciles with the server result.
 3. `redirect()` throws. What does that mean for code after it, and for wrapping it in
    `try/catch`?
 4. Why must the `useFormStatus` component be a **child** of the form?
-5. Why is client-side validation never sufficient? Describe exactly how an attacker
-   bypasses it.
-6. A Server Action compiles to a public HTTP endpoint. What follows from that for
-   authorization?
+5. Why is client-side validation never sufficient? Describe exactly how it's bypassed.
+6. A Server Action compiles to a public HTTP endpoint. What follows for authorization?
 7. `revalidateTag` vs `revalidatePath` — when does each win?
+8. Which package does each of the three hooks come from, and which one was renamed?
 
 ---
 
 ## Not yet
 
-No real session verification (Phase 12). No tagged fetches (Phase 11) — **Version B of
-Problem 7 is incomplete by design.**
+No real session verification (Phase 12) — the login cookie is just a user id, and
+anyone could forge it. No tagged fetches (Phase 11), so **Version B of Problem 7 is
+incomplete by design**.
