@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import type { Role } from "@/lib/types";
 
 
-const role: Role = "viewer"; // ← flip to "admin" to get in
+const role: Role = "admin";
 
 export default async function AdminLayout({
     children,
