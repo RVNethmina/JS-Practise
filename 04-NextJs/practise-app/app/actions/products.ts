@@ -1,7 +1,7 @@
 "use server";
 
 import { FormState } from "@/lib/form";
-import { createProduct } from "@/lib/products";
+import { createProduct, deleteProduct } from "@/lib/products";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -89,4 +89,10 @@ export async function createProductAction(
     revalidatePath("/admin/products");
 
     redirect("/admin/products");
+}
+
+
+export async function deleteProductAction(id: string) {
+    await deleteProduct(id);
+    revalidatePath("/admin/products");
 }
