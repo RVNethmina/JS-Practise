@@ -98,7 +98,7 @@ There are two separate failure cases and both need handling:
 
 ### What you need to know
 
-- `generateStaticParams` runs **at build time, on the server**. It can read `db.ts`
+- `generateStaticParams` runs **at build time, on the server**. It can read `lib/posts.ts`
   directly.
 - Return an **array of objects**, one per page. The key must match the folder name
   exactly — `[slug]` needs `{ slug: "..." }`.

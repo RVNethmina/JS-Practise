@@ -1,4 +1,4 @@
-import { getRecommendations, getProducts } from "@/lib/db";
+import { getRecommendations, getProducts } from "@/lib/products";
 import Link from "next/link";
 
 type PageProps = {

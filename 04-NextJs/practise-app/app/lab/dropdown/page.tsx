@@ -1,4 +1,4 @@
-import { getCategories } from "@/lib/db";
+import { getCategories } from "@/lib/categories";
 import Dropdown from "@/app/_components/Dropdown";
 
 /* This page runs on the SERVER. It gets the categories from the database and

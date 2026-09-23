@@ -6,7 +6,7 @@
    None of that is possible in a Client Component. Yet its output ends up
    INSIDE one. See page.tsx for how. */
 
-import { getProduct } from "@/lib/db";
+import { getProduct } from "@/lib/products";
 
 export default async function ProductDetails({ id }: { id: string }) {
     console.log("[ProductDetails] running on the SERVER");

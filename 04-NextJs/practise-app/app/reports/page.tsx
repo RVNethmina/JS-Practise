@@ -1,4 +1,4 @@
-import { getSalesRecords } from "@/lib/db";
+import { getSalesRecords } from "@/lib/dashboard";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {

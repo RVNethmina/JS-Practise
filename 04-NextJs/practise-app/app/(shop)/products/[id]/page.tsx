@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getProduct } from "@/lib/db";
+import { getProduct } from "@/lib/products";
 import Link from "next/link";
 
 type PageProps = {

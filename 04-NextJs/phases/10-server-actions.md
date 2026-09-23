@@ -55,8 +55,8 @@ const role: Role = "viewer";   // ← redirects you to /login
 Every admin route in this phase is unreachable until you set it to `"admin"`. Phase 12
 replaces this with a real session.
 
-**2. You need `createProduct`.** Phase 8 Problem 0 added `writeJson`,
-`updateProduct` and `deleteProduct`. This phase needs one more:
+**2. You need `createProduct` in `lib/products.ts`.** Phase 8 Problem 0 added
+`writeJson`, `updateProduct` and `deleteProduct`. This phase needs one more:
 
 ```ts
 export async function createProduct(
@@ -73,7 +73,8 @@ Generate `id` as `p-{n+1}`, set `createdAt` to now, default `variants` to `[]`, 
 ## What you'll have built by the end
 
 ```
-lib/db.ts                                   <- createProduct
+lib/products.ts                             <- createProduct
+lib/users.ts                                <- updateUser (P2)
 lib/form.ts                                 <- shared FormState type
 app/actions/users.ts                        <- P1
 app/actions/profile.ts                      <- P2
@@ -172,9 +173,24 @@ export async function updateProfileAction(
 ```
 
 - Validate `name` (non-empty) and `email` (contains `@`)
-- On failure **return** `{ errors, values }` — do **not** throw
-- On success return `{ message: "Saved" }`
+- On failure **return** `{ errors, values }` — do **not** throw. Return **all**
+  the values, not just the one that failed, or the other box gets wiped
+- On success call `updateUser("u-1", { name, email })`, then return
+  `{ message: "Saved" }`
 - There's no session yet, so hardcode which user you're editing: `"u-1"`
+- Render `state.message` on the page, or a successful save shows nothing
+
+### 2b-i. You need `updateUser` in `lib/users.ts`
+
+```ts
+export async function updateUser(
+  id: string,
+  patch: Partial<Pick<User, "name" | "email">>
+): Promise<PublicUser | null>
+```
+
+Same shape as `updateProduct`: find by id, merge, `writeJson`, return it without the
+`passwordHash`. `null` when the id doesn't exist.
 
 ### 2c. The page — a Client Component
 

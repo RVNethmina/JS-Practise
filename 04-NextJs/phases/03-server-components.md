@@ -35,7 +35,7 @@ that disappears.**
 
 ## What you're building
 
-Real data on the page for the first time. Components call `lib/db.ts` **directly**.
+Real data on the page for the first time. Components call the `lib/` data functions **directly**.
 
 That's the correct production pattern. You don't build an HTTP endpoint to feed your
 own pages — that's a pointless network round trip to reach data you already have.
@@ -54,7 +54,7 @@ HTML.
 ### Steps
 
 1. Make the component `async`
-2. `await getUsers()` from `@/lib/db`
+2. `await getUsers()` from `@/lib/users`
 3. Map over the result into a list, with a `key` on each item
 4. Add no `"use client"`, no `useEffect`, no `useState`
 
@@ -105,7 +105,7 @@ the browser tab shows the product's name.
 
 ### The experiment — set up Phase 6
 
-Add `console.log("FETCHING PRODUCT", id)` inside `getProduct` in `lib/db.ts`.
+Add `console.log("FETCHING PRODUCT", id)` inside `getProduct` in `lib/products.ts`.
 
 Load `/products/1` once and count the log lines. **You'll see it twice** — once for
 `generateMetadata`, once for the page.
@@ -130,7 +130,7 @@ it's happening.
 
 ### Steps
 
-1. Import `getStats`, `getRecentOrders`, `getNotifications` from `@/lib/db`
+1. Import `getStats`, `getRecentOrders`, `getNotifications` from `@/lib/dashboard`
 2. **First do it the slow way**, on purpose:
    ```
    const stats  = await getStats();
@@ -249,7 +249,7 @@ network requests.
 
 ```
 SERVER (page.tsx)            CLIENT (ProductFilter.tsx)
-reads lib/db.ts              holds useState
+reads lib/products.ts        holds useState
 can be async                 handles onChange
 ships NO code to browser     ships its code
 passes data down as props    filters what it was given

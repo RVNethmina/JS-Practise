@@ -1,4 +1,4 @@
-import { getUsers } from "@/lib/db";
+import { getUsers } from "@/lib/users";
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { PublicUser } from "@/lib/types";

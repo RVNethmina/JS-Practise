@@ -1,4 +1,4 @@
-import { getProduct, getProducts } from "@/lib/db";
+import { getProduct, getProducts } from "@/lib/products";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";

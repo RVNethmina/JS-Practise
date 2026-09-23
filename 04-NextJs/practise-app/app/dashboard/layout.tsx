@@ -1,4 +1,4 @@
-import { getCategories } from "@/lib/db";
+import { getCategories } from "@/lib/categories";
 import Sidebar from "./_components/Sidebar";
 import DashboardNav from "./DashboardNav";
 

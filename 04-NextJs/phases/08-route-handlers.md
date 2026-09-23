@@ -37,7 +37,7 @@ not architecture advice.
 The browser only sends GET. You'll miss most of your own bugs.
 
 ```bash
-curl -i http://localhost:3000/api/users
+curl.exe -i http://localhost:3000/api/users
 ```
 
 `-i` shows the status line and headers, which is most of what you're checking here.
@@ -45,7 +45,9 @@ curl -i http://localhost:3000/api/users
 ## What you'll have built by the end
 
 ```
-lib/db.ts                        <- writeJson + 3 write functions (below)
+lib/db-core.ts                   <- writeJson (below)
+lib/users.ts                     <- createUser (below)
+lib/products.ts                  <- updateProduct, deleteProduct (below)
 lib/api.ts                       <- shared response helpers (below)
 app/api/users/route.ts           <- P1 GET, P2 POST
 app/api/products/route.ts        <- P7 GET paginated
@@ -58,15 +60,18 @@ app/api/[resource]/route.ts      <- P8 GET, whitelisted
 
 ## Problem 0 — Setup you need before anything else
 
-**`lib/db.ts` is currently read-only.** There is no way to write to the JSON files, so
-POST, PUT, PATCH and DELETE are impossible until you add this.
+**The data layer is currently read-only.** There is no way to write to the JSON files,
+so POST, PUT, PATCH and DELETE are impossible until you add this.
 
-### 0a. A writer, mirroring `readJson`
+### 0a. A writer, mirroring `readJson` — in `lib/db-core.ts`
+
+It goes beside `readJson`, and it must be **exported** so `users.ts` and `products.ts`
+can use it:
 
 ```ts
 import { readFile, writeFile } from "node:fs/promises";
 
-async function writeJson<T>(filename: string, data: T): Promise<void> {
+export async function writeJson<T>(filename: string, data: T): Promise<void> {
   await writeFile(
     path.join(DATA_DIR, filename),
     JSON.stringify(data, null, 2),
@@ -84,16 +89,21 @@ async function writeJson<T>(filename: string, data: T): Promise<void> {
 
 ### 0b. Three write functions
 
+Each goes in the file for its entity, and imports `writeJson` from `./db-core`.
+
 ```ts
+// lib/users.ts
 export async function createUser(
   input: { username: string; name: string; email: string; role: Role }
 ): Promise<PublicUser>
 
+// lib/products.ts
 export async function updateProduct(
   id: string,
   patch: Partial<Omit<Product, "id">>
 ): Promise<Product | null>
 
+// lib/products.ts
 export async function deleteProduct(id: string): Promise<boolean>
 ```
 
@@ -138,7 +148,7 @@ No params needed, so `GET` takes no arguments here.
 ### Test
 
 ```bash
-curl -i http://localhost:3000/api/users
+curl.exe -i http://localhost:3000/api/users
 ```
 
 Status 200, `content-type: application/json`, five users in the body.
@@ -180,13 +190,13 @@ never work.
 ### Test
 
 ```bash
-curl -i -X POST http://localhost:3000/api/users -H "Content-Type: application/json" -d "not json"
+curl.exe -i -X POST http://localhost:3000/api/users -H "Content-Type: application/json" -d "not json"
 ```
 
 Must be **400**, not 500.
 
 ```bash
-curl -i -X POST http://localhost:3000/api/users -H "Content-Type: application/json" -d "{\"username\":\"zara\",\"name\":\"Zara\",\"email\":\"z@example.com\",\"role\":\"viewer\"}"
+curl.exe -i -X POST http://localhost:3000/api/users -H "Content-Type: application/json" -d "{\"username\":\"zara\",\"name\":\"Zara\",\"email\":\"z@example.com\",\"role\":\"viewer\"}"
 ```
 
 **201**, and `data/users.json` now has six users.
@@ -225,8 +235,8 @@ status instead.
 ### Test
 
 ```bash
-curl -i http://localhost:3000/api/products/p-1
-curl -i http://localhost:3000/api/products/p-9999
+curl.exe -i http://localhost:3000/api/products/p-1
+curl.exe -i http://localhost:3000/api/products/p-9999
 ```
 
 200 with the product; 404 with `{"error":"Product not found"}`.
@@ -260,13 +270,13 @@ double-apply.
 ### Test
 
 ```bash
-curl -i -X PATCH http://localhost:3000/api/products/p-1 -H "Content-Type: application/json" -d "{\"price\":19900}"
+curl.exe -i -X PATCH http://localhost:3000/api/products/p-1 -H "Content-Type: application/json" -d "{\"price\":19900}"
 ```
 
 200, and the product's **name and tags are unchanged** — only the price moved.
 
 ```bash
-curl -i -X PUT http://localhost:3000/api/products/p-1 -H "Content-Type: application/json" -d "{\"price\":19900}"
+curl.exe -i -X PUT http://localhost:3000/api/products/p-1 -H "Content-Type: application/json" -d "{\"price\":19900}"
 ```
 
 **400** — PUT demands the whole resource.
@@ -303,7 +313,7 @@ and write down why** — interviewers ask this to see if you reason about API de
 ### Test
 
 ```bash
-curl -i -X DELETE http://localhost:3000/api/products/p-20
+curl.exe -i -X DELETE http://localhost:3000/api/products/p-20
 ```
 
 **204**, and nothing after the headers. Then `git checkout data/products.json` to
@@ -338,9 +348,9 @@ so your endpoint's contract doesn't silently depend on someone else's ceiling.
 ### Test
 
 ```bash
-curl -i "http://localhost:3000/api/search?q=desk&limit=5"
-curl -i "http://localhost:3000/api/search"
-curl -s "http://localhost:3000/api/search?q=desk&limit=999999" | head -c 200
+curl.exe -i "http://localhost:3000/api/search?q=desk&limit=5"
+curl.exe -i "http://localhost:3000/api/search"
+curl.exe -s "http://localhost:3000/api/search?q=desk&limit=999999" | head -c 200
 ```
 
 Works; 400; clamped to at most 50 items.
@@ -372,8 +382,8 @@ pagination controls.
 ### Test
 
 ```bash
-curl -s "http://localhost:3000/api/products?page=2&pageSize=5"
-curl -s "http://localhost:3000/api/products?page=999&pageSize=5"
+curl.exe -s "http://localhost:3000/api/products?page=2&pageSize=5"
+curl.exe -s "http://localhost:3000/api/products?page=999&pageSize=5"
 ```
 
 First: 5 items, `page: 2`, `total: 20`, `totalPages: 4`. Second: 200 with the last
@@ -429,9 +439,9 @@ IS allowed and reject everything else.
 ### Test
 
 ```bash
-curl -i http://localhost:3000/api/categories
-curl -i http://localhost:3000/api/secrets
-curl -s http://localhost:3000/api/users | head -c 80
+curl.exe -i http://localhost:3000/api/categories
+curl.exe -i http://localhost:3000/api/secrets
+curl.exe -s http://localhost:3000/api/users | head -c 80
 ```
 
 200; **404**; and `/api/users` still returns your Problem 1 handler's output, proving

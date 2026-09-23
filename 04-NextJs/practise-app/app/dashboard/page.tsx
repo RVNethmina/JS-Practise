@@ -1,4 +1,4 @@
-import { getStats, getRecentOrders, getNotifications } from "@/lib/db";
+import { getStats, getRecentOrders, getNotifications } from "@/lib/dashboard";
 import Filters from "./_components/Filters";
 
 export default async function DashboardPage() {

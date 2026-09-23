@@ -2,9 +2,9 @@
 
 **6 problems** · Vault folder: `07-loading-error`
 
-> This phase is **why `lib/db.ts` has artificial delays.** Without them nothing here
-> is visible. If a loading state flashes past too fast to see, temporarily raise a
-> delay in `db.ts`.
+> This phase is **why the data functions have artificial delays.** Without them
+> nothing here is visible. If a loading state flashes past too fast to see, temporarily
+> raise `DELAYS` in `lib/db-core.ts`.
 
 ## Read first
 
@@ -32,7 +32,7 @@ app/dashboard/analytics/page.tsx        ← P3  new, throws on demand
 app/dashboard/analytics/error.tsx       ← P5  new, extended in P6
 app/(shop)/products/(list)/loading.tsx  ← P2  new
 app/(shop)/products/[id]/not-found.tsx  ← P4  new
-lib/db.ts                               ← P3 and P6 additions
+lib/dashboard.ts                        ← P3 and P6 additions
 app/globals.css                         ← P2 skeleton class
 ```
 
@@ -125,10 +125,10 @@ delay, so you get a good look.
 
 **Goal:** a thrown error shows your UI instead of a crash.
 
-**Files:** `lib/db.ts` *(edit)*, `app/dashboard/analytics/page.tsx` *(new)*,
+**Files:** `lib/dashboard.ts` *(edit)*, `app/dashboard/analytics/page.tsx` *(new)*,
 `app/dashboard/error.tsx` *(new)*
 
-### 3a. Add to `lib/db.ts`
+### 3a. Add to `lib/dashboard.ts`
 
 ```ts
 export type AnalyticsSummary = {
@@ -260,10 +260,10 @@ Remove the throw afterwards.
 
 **Goal:** a Retry that genuinely recovers, and gives up after 3 tries.
 
-**Files:** `lib/db.ts` *(edit)*, `app/dashboard/analytics/page.tsx` *(edit)*,
+**Files:** `lib/dashboard.ts` *(edit)*, `app/dashboard/analytics/page.tsx` *(edit)*,
 `app/dashboard/analytics/error.tsx` *(edit)*
 
-### 6a. Make the failure intermittent — add to `lib/db.ts`
+### 6a. Make the failure intermittent — add to `lib/dashboard.ts`
 
 ```ts
 let analyticsAttempts = 0;

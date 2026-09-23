@@ -21,9 +21,24 @@ Nothing here is interview material. Come back to it to look things up.
 │   ├── products.json
 │   └── users.json
 └── lib/
-    ├── db.ts               async read functions over those JSON files
+    ├── db-core.ts          shared helpers: readJson, writeJson, sleep, DELAYS
+    ├── products.ts         product reads (and later, writes)
+    ├── categories.ts       category reads
+    ├── posts.ts            post reads
+    ├── users.ts            user reads (and later, writes)
+    ├── docs.ts             doc reads
+    ├── dashboard.ts        stats, orders, notifications, sales records
     └── types.ts            every entity type
 ```
+
+**One file per entity.** Pages import from the file that owns the data:
+
+```ts
+import { getProducts } from "@/lib/products";
+import { getUsers } from "@/lib/users";
+```
+
+`db-core.ts` is plumbing for the other `lib/` files. App code never imports from it.
 
 ---
 
@@ -54,32 +69,34 @@ fails. Keeping it as an ISO string means it's safe to pass anywhere. Parse to a
 
 ---
 
-## The `lib/db.ts` functions
+## The data functions
 
 Every one is `async` and artificially slow. **The delays are the point** — without
 them, `loading.tsx` never appears and Phases 7 and 9 teach you nothing.
 
+The delays live in `lib/db-core.ts`:
+
 ```
 DELAYS.fast = 300ms
-DELAYS.slow = 2000ms
+DELAYS.slow = 4000ms
 ```
 
-| Function | Returns | Delay |
-|---|---|---|
-| `getProducts(options?)` | `Promise<ProductListResult>` | slow |
-| `getProduct(id)` | `Promise<Product \| null>` | fast |
-| `getCategories()` | `Promise<Category[]>` | fast |
-| `getCategory(slug)` | `Promise<Category \| null>` | fast |
-| `getPosts()` | `Promise<Post[]>` | fast |
-| `getPost(slug)` | `Promise<Post \| null>` | fast |
-| `getUsers()` | `Promise<PublicUser[]>` | fast |
-| `getUser(username)` | `Promise<PublicUser \| null>` | fast |
-| `getUserByEmail(email)` | `Promise<User \| null>` | fast |
-| `getDoc(slug: string[])` | `Promise<Doc \| null>` | fast |
-| `getStats()` | `Promise<DashboardStats>` | 800ms |
-| `getRecentOrders()` | `Promise<RecentOrder[]>` | 1200ms |
-| `getNotifications()` | `Promise<Notification[]>` | 600ms |
-| `getSalesRecords()` | `Promise<SalesRecord[]>` | fast, 10,000 rows |
+| Function | File | Returns | Delay |
+|---|---|---|---|
+| `getProducts(options?)` | `products.ts` | `Promise<ProductListResult>` | slow |
+| `getProduct(id)` | `products.ts` | `Promise<Product \| null>` | fast |
+| `getCategories()` | `categories.ts` | `Promise<Category[]>` | fast |
+| `getCategory(slug)` | `categories.ts` | `Promise<Category \| null>` | fast |
+| `getPosts()` | `posts.ts` | `Promise<Post[]>` | fast |
+| `getPost(slug)` | `posts.ts` | `Promise<Post \| null>` | fast |
+| `getUsers()` | `users.ts` | `Promise<PublicUser[]>` | fast |
+| `getUser(username)` | `users.ts` | `Promise<PublicUser \| null>` | fast |
+| `getUserByEmail(email)` | `users.ts` | `Promise<User \| null>` | fast |
+| `getDoc(slug: string[])` | `docs.ts` | `Promise<Doc \| null>` | fast |
+| `getStats()` | `dashboard.ts` | `Promise<DashboardStats>` | 800ms |
+| `getRecentOrders()` | `dashboard.ts` | `Promise<RecentOrder[]>` | 1200ms |
+| `getNotifications()` | `dashboard.ts` | `Promise<Notification[]>` | 600ms |
+| `getSalesRecords()` | `dashboard.ts` | `Promise<SalesRecord[]>` | fast, 10,000 rows |
 
 ### `getProducts` in detail
 
@@ -134,16 +151,32 @@ cd C:\Hello\My_Projects\JS-Practise\04-NextJs\practise-app && npm run dev
 
 ---
 
-## Adding to `db.ts` later
+## Adding data functions later
 
-Some phases need write functions that don't exist yet:
+Later phases add functions that don't exist yet. **Each one goes in the file for its
+entity.** Shared helpers go in `db-core.ts`.
 
-| Needed by | Functions |
-|---|---|
-| Phase 10 | `createProduct`, `updateProduct`, `deleteProduct` |
-| Phase 6, 7 | a `shouldFail` flag to trigger errors on demand |
+| Phase | Adds | File |
+|---|---|---|
+| 5 | `getDocs` | `docs.ts` |
+| 6 | `shouldFail` switch, `failIfAsked` | `db-core.ts` |
+| 6 | `getRecommendations` | `products.ts` |
+| 6 | `getPostsByAuthor` | `posts.ts` |
+| 7 | `getAnalytics`, `getFlakyAnalytics` | `dashboard.ts` |
+| 8 | `writeJson` | `db-core.ts` |
+| 8 | `createUser` | `users.ts` |
+| 8 | `updateProduct`, `deleteProduct` | `products.ts` |
+| 10 | `createProduct` | `products.ts` |
+| 10 | `updateUser` | `users.ts` |
+| 11 | `getCachedCategories` | `categories.ts` |
 
 Add them when the brief asks, not before.
+
+An entity file imports the helpers it needs from `db-core.ts`:
+
+```ts
+import { DELAYS, sleep, readJson, writeJson } from "./db-core";
+```
 
 ---
 

@@ -1,4 +1,5 @@
-import { getProducts, getCategory } from "@/lib/db";
+import { getProducts } from "@/lib/products";
+import { getCategory } from "@/lib/categories";
 import { notFound } from "next/navigation";
 import type { ProductSort } from "@/lib/types";
 import Link from "next/link";

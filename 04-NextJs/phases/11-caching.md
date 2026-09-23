@@ -93,7 +93,7 @@ Use a 10-second revalidate window while experimenting, not 60.
 app/(shop)/products/(list)/page.tsx   <- P1  swap db for fetch
 app/blog/page.tsx                     <- P2  revalidate, two ways
 app/actions/products.ts               <- P3  edit
-lib/db.ts                             <- P3  add getCachedCategories
+lib/categories.ts                     <- P3  add getCachedCategories
 app/lab/static-demo/page.tsx          <- P4  new
 app/lab/dynamic-demo/page.tsx         <- P5  new
 app/lab/cache-compare/page.tsx        <- P6  new
@@ -179,7 +179,7 @@ setting wins when they disagree.
 
 **Goal:** creating a product updates **every** page that shows products.
 
-**Files:** `app/actions/products.ts` *(edit)*, `lib/db.ts` *(edit)*
+**Files:** `app/actions/products.ts` *(edit)*, `lib/categories.ts` *(edit)*
 
 ### 3a. Tag the fetches
 
@@ -214,7 +214,7 @@ a dynamic segment like `/product/[slug]`.
 
 ### 3d. The `db`-direct equivalent
 
-Add to `lib/db.ts`:
+Add to `lib/categories.ts`:
 
 ```ts
 import { unstable_cache } from "next/cache";

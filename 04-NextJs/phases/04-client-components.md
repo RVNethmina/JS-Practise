@@ -181,7 +181,7 @@ lesson.
 graph TD
     subgraph SERVER["🖥️ SERVER — runs in Node, code never ships"]
         PAGE["<b>page.tsx</b><br/>Server Component<br/><i>does the composing</i>"]
-        PD["<b>ProductDetails</b><br/>async · reads lib/db.ts<br/><i>logs to your terminal</i>"]
+        PD["<b>ProductDetails</b><br/>async · reads lib/products.ts<br/><i>logs to your terminal</i>"]
         OUT["rendered output<br/>&lt;div&gt;…product…&lt;/div&gt;<br/><i>plain data now, not code</i>"]
     end
 

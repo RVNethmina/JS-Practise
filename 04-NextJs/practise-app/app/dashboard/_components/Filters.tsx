@@ -19,7 +19,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { RecentOrder } from "@/lib/db";
+import type { RecentOrder } from "@/lib/dashboard";
 
 type FiltersProps = {
     orders: RecentOrder[];

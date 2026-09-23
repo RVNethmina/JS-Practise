@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getDoc, getDocs } from "@/lib/db";
+import { getDoc, getDocs } from "@/lib/docs";
 
 
 type PageProps = {

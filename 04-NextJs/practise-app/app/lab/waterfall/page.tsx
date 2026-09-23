@@ -1,4 +1,6 @@
-import { getPosts, getUsers, getStats } from "@/lib/db";
+import { getPosts } from "@/lib/posts";
+import { getUsers } from "@/lib/users";
+import { getStats } from "@/lib/dashboard";
 
 
 // ── A. One after another ────────────────────────────────────────────────────

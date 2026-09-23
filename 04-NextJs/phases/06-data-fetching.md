@@ -17,7 +17,7 @@ hit and a cache to observe.
 
 ## Set this up first — you need it for Problems 6 and 7
 
-Add a failure switch to `lib/db.ts`:
+Add a failure switch to `lib/db-core.ts`:
 
 ```
 export let shouldFail = false;
@@ -95,7 +95,7 @@ The page still works. The comments are written.
 ### Steps
 
 1. Make sure `generateMetadata` **and** the page both call `getProduct(id)`
-2. Put `console.log("DB HIT", id)` inside `getProduct` in `lib/db.ts`
+2. Put `console.log("DB HIT", id)` inside `getProduct` in `lib/products.ts`
 3. Load `/products/1` and **count the log lines. Write the number down.**
 4. Now wrap the function in React's `cache()`:
    ```
@@ -241,7 +241,7 @@ call it:
 - `/products` **catches** the failure → only the Recommended strip degrades
 - `/lab/failure` **doesn't catch** → the whole route dies
 
-### 1. Add to `lib/db.ts`
+### 1. Add to `lib/products.ts`
 
 ```ts
 export async function getRecommendations(

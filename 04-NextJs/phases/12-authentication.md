@@ -381,13 +381,13 @@ anyone on the internet can empty your product catalogue.
 ### Test
 
 ```bash
-curl -i http://localhost:3000/api/protected
+curl.exe -i http://localhost:3000/api/protected
 ```
 
 **401.** With a viewer's cookie, **403**. And:
 
 ```bash
-curl -i -X DELETE http://localhost:3000/api/products/p-1
+curl.exe -i -X DELETE http://localhost:3000/api/products/p-1
 ```
 
 **401**, not 204.

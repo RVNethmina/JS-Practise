@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getProducts, getRecommendations } from "@/lib/db";
+import { getProducts, getRecommendations } from "@/lib/products";
 import ProductFilter from "../_components/ProductFilter";
 import SearchBox from "../_components/SearchBox";
 import Link from "next/link";

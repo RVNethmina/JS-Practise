@@ -51,7 +51,7 @@ Mark it `async` if you need `await` inside.
 Pre-16, middleware ran on the Edge runtime: no Node APIs, no `node:fs`, most database
 drivers unusable. **As of Next 16 it defaults to Node.js.**
 
-Verified by importing `lib/db.ts` (which uses `node:fs`) into a proxy:
+Verified by importing `lib/users.ts` (whose `db-core.ts` helpers use `node:fs`) into a proxy:
 
 ```
 GET /probe-proxy   ->  HTTP 404,  x-user-count: 5

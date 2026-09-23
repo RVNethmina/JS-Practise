@@ -1,4 +1,4 @@
-import { getAnalytics, getFlakyAnalytics } from "@/lib/db";
+import { getAnalytics, getFlakyAnalytics } from "@/lib/dashboard";
 import Link from "next/link";
 
 type PageProps = {

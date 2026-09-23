@@ -1,4 +1,6 @@
-import { getUser, getPostsByAuthor, getCategories } from "@/lib/db";
+import { getUser } from "@/lib/users";
+import { getPostsByAuthor } from "@/lib/posts";
+import { getCategories } from "@/lib/categories";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 

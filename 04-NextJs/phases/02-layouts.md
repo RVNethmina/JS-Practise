@@ -239,7 +239,7 @@ rebuilt on navigation (Problem 1).
 ### Verify
 
 1. Collapse, then navigate `/dashboard` → `/dashboard/settings`. Still collapsed.
-2. Category names came from `db.ts`, fetched on the server
+2. Category names came from `lib/categories.ts`, fetched on the server
 
 ---
 
