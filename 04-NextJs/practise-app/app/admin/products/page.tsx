@@ -1,6 +1,6 @@
 import { getProducts } from "@/lib/products";
 import Link from "next/link";
-import DeleteButton from "./_components/DeleteButton";
+import ProductList from "./_components/ProductList";
 
 export default async function ProductsPage() {
 
@@ -11,12 +11,7 @@ export default async function ProductsPage() {
             <h1>Products</h1>
             <Link href="/admin/products/new">New product</Link>
 
-            {items.map((product) => (
-                <div key={product.id}>
-                    <p>{product.name} — ${(product.price / 100).toFixed(2)}</p>
-                    <DeleteButton id={product.id} />
-                </div>
-            ))}
+            <ProductList items={items} />
         </div>
     );
 }

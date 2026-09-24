@@ -2,7 +2,7 @@
 
 import { FormState } from "@/lib/form";
 import { createProduct, deleteProduct } from "@/lib/products";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function createProductAction(
@@ -86,13 +86,24 @@ export async function createProductAction(
     }
 
     revalidatePath("/products");
+    revalidateTag("products", "max");
     revalidatePath("/admin/products");
 
     redirect("/admin/products");
 }
 
 
-export async function deleteProductAction(id: string) {
-    await deleteProduct(id);
+export async function deleteProductAction(id: string): Promise<{ error?: string }> {
+    const deleted = await deleteProduct(id);
+
+    if (!deleted) {
+        return { error: "Product not found." };
+    }
+
     revalidatePath("/admin/products");
+
+    // Does nothing yet: no fetch is tagged "products". Phase 11 Problem 3 adds the tags.
+    revalidateTag("products", "max");
+
+    return {};
 }
